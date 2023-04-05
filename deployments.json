@@ -1,0 +1,10 @@
+{
+  "UniversalLiquidator": "0x...",
+  "UniversalLiquidatorRegistry": "0x...",
+  "Dexes": {
+    "example": {
+      "hex": "0x...",
+      "address": "0x..."
+    }
+  }
+}
