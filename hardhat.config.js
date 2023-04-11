@@ -2,12 +2,12 @@ require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-truffle5");
 require("@nomiclabs/hardhat-ethers");
 
-const keys = require('./dev-keys.json');
+const keys = require("./dev-keys.json");
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  defaultNetwork: 'hardhat',
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       accounts: {
@@ -15,12 +15,12 @@ module.exports = {
       },
       forking: {
         chainId: 42161,
-        url: `https://arb-mainnet.g.alchemy.com/v2/${secret.alchemyKey}`,
+        url: `https://arb-mainnet.g.alchemy.com/v2/${keys.alchemyKey}`,
         // blockNumber: 15087700, // <-- edit here
       },
     },
     mainnet: {
-      url: `https://arb-mainnet.g.alchemy.com/v2/${secret.alchemyKey}`,
+      url: `https://arb-mainnet.g.alchemy.com/v2/${keys.alchemyKey}`,
       accounts: {
         mnemonic: keys.mnemonic,
       },
@@ -29,7 +29,7 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: '0.6.12',
+        version: "0.6.12",
         settings: {
           optimizer: {
             enabled: true,
