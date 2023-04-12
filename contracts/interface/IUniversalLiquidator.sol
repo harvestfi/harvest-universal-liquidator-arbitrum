@@ -2,30 +2,20 @@
 pragma solidity 0.6.12;
 
 interface IUniversalLiquidator {
-  event Swap(
-    address indexed buyToken,
-    address indexed sellToken,
-    address indexed target,
-    address initiator,
-    uint256 amountIn,
-    uint256 slippage
-  );
+    event Swap(
+        address indexed buyToken,
+        address indexed sellToken,
+        address indexed receiver,
+        address initiator,
+        uint256 sellAmount,
+        uint256 minBuyAmount
+    );
 
-  function swapTokenOnMultipleDEXes(
-    uint256 amountIn,
-    uint256 amountOutMin,
-    address target,
-    bytes32[] memory dexes,
-    address[] memory path
-  ) external returns (uint256);
-
-  function swapTokenOnDEX(
-    uint256 amountIn,
-    uint256 amountOutMin,
-    address target,
-    bytes32 dexName,
-    address[] memory path
-  ) external;
-
-  function getAllDexes() external view returns (bytes32[] memory);
+    function swapTokenOnMultipleDEXes(
+        address _sellToken,
+        address _buyToken,
+        uint256 _sellAmount,
+        uint256 _minBuyAmount,
+        address _receiver
+    ) external returns (uint256);
 }
