@@ -1,151 +1,100 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+// imported contracts and libraries
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import "./interface/IUniversalLiquidator.sol";
-import "./interface/ILiquidityDex.sol";
+// interfaces
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interface/IUniversalLiquidator.sol";
+import "../interface/IUniversalLiquidatorRegistry.sol";
+import "../interface/ILiquidityDex.sol";
 
-import "./interface/IUniversalLiquidatorRegistry.sol";
+// librarise
+import "../libraries/DataTypes.sol";
 
 contract UniversalLiquidator is Ownable, IUniversalLiquidator {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    mapping(bytes32 => address) public getDex;
-    bytes32[] public allDexes;
-
     address public pathRegistry;
 
-    function setPathRegistry(address _pathRegistry) public onlyOwner {
-        pathRegistry = _pathRegistry;
-    }
-
-    function swapTokenOnDEX(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address target,
-        bytes32 dexName,
-        address[] memory path
-    ) public override {
-        require(_dexExists(dexName), "Dex does not exist");
-        require(amountIn > 0, "No tokens being swapped");
-
-        IERC20(path[0]).safeTransferFrom(target, address(this), amountIn);
-
-        _swap(amountIn, amountOutMin, target, dexName, path);
-    }
-
     function swapTokenOnMultipleDEXes(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address target,
-        bytes32[] memory dexes,
-        address[] memory path
+        address _sellToken,
+        address _buyToken,
+        uint256 _sellAmount,
+        uint256 _minBuyAmount,
+        address _receiver
     ) external override returns (uint256) {
-        require(
-            dexes.length == path.length - 1,
-            "dexes length does not match path length"
+        DataTypes.SwapInfo[] memory swapInfo = IUniversalLiquidatorRegistry(
+            pathRegistry
+        ).getPath(_sellToken, _buyToken);
+
+        IERC20(swapInfo[0].paths[0]).safeTransferFrom(
+            _receiver,
+            address(this),
+            _sellAmount
         );
 
-        IERC20(path[0]).safeTransferFrom(target, address(this), amountIn);
-
-        for (uint256 i = 0; i < path.length - 1; i++) {
-            address[] memory liquidationPath = IUniversalLiquidatorRegistry(
-                pathRegistry
-            ).getPath(dexes[i], path[i], path[i + 1]);
+        for (uint256 i = 0; i < swapInfo.length; i++) {
             _swap(
-                IERC20(path[i]).balanceOf(address(this)),
-                amountOutMin,
+                IERC20(swapInfo[i].paths[0]).balanceOf(address(this)),
+                _minBuyAmount,
                 address(this),
-                dexes[i],
-                liquidationPath
+                swapInfo[i].dex,
+                swapInfo[i].paths
             );
         }
+
+        DataTypes.SwapInfo memory lastSwap = swapInfo[swapInfo.length - 1];
+
         require(
-            amountOutMin <
-                IERC20(path[path.length - 1]).balanceOf(address(this)),
-            "Didn't obtain more than amountOutMin"
+            _minBuyAmount <
+                IERC20(lastSwap.paths[lastSwap.paths.length - 1]).balanceOf(
+                    address(this)
+                ),
+            "Didn't obtain more than _minBuyAmount"
         );
-        IERC20(path[path.length - 1]).safeTransfer(
-            target,
-            IERC20(path[path.length - 1]).balanceOf(address(this))
+        IERC20(lastSwap.paths[lastSwap.paths.length - 1]).safeTransfer(
+            _receiver,
+            IERC20(lastSwap.paths[lastSwap.paths.length - 1]).balanceOf(
+                address(this)
+            )
         );
-    }
-
-    function getAllDexes() public view override returns (bytes32[] memory) {
-        uint256 size = 0;
-        uint256 index = 0;
-
-        for (index = 0; index < allDexes.length; index++) {
-            if (getDex[allDexes[index]] != address(0)) {
-                size++;
-            }
-        }
-
-        bytes32[] memory arr = new bytes32[](size);
-        uint256 arrIndex = 0;
-
-        for (index = 0; index < allDexes.length; index++) {
-            if (getDex[allDexes[index]] != address(0)) {
-                arr[arrIndex] = allDexes[index];
-                arrIndex++;
-            }
-        }
-
-        return arr;
-    }
-
-    function addDex(bytes32 name, address dexAddress) public onlyOwner {
-        require(!_dexExists(name), "Dex already exists");
-        getDex[name] = dexAddress;
-        allDexes.push(name);
-    }
-
-    function changeDexAddress(
-        bytes32 name,
-        address dexAddress
-    ) public onlyOwner {
-        require(_dexExists(name), "Dex does not exists");
-        getDex[name] = dexAddress;
     }
 
     function _swap(
-        uint256 amountIn,
-        uint256 minAmountOut,
-        address target,
-        bytes32 dexName,
-        address[] memory path
+        uint256 _sellAmount,
+        uint256 _minBuyAmount,
+        address _receiver,
+        address _dex,
+        address[] memory _path
     ) internal {
-        address dex = getDex[dexName];
-        require(dex != address(0), "Dex does not exist");
+        IERC20(_path[0]).safeApprove(_dex, 0);
+        IERC20(_path[0]).safeApprove(_dex, _sellAmount);
 
-        IERC20(path[0]).safeApprove(dex, 0);
-        IERC20(path[0]).safeApprove(dex, amountIn);
-
-        ILiquidityDex(dex).doSwap(
-            amountIn,
-            minAmountOut,
+        ILiquidityDex(_dex).doSwap(
+            _sellAmount,
+            _minBuyAmount,
             address(this),
-            target,
-            path
+            _receiver,
+            _path
         );
 
         emit Swap(
-            path[path.length - 1],
-            path[0],
-            target,
+            _path[_path.length - 1],
+            _path[0],
+            _receiver,
             msg.sender,
-            amountIn,
-            minAmountOut
+            _sellAmount,
+            _minBuyAmount
         );
     }
 
-    function _dexExists(bytes32 name) internal view returns (bool) {
-        return getDex[name] != address(0);
+    function setPathRegistry(address _pathRegistry) public onlyOwner {
+        pathRegistry = _pathRegistry;
     }
 
     receive() external payable {}
