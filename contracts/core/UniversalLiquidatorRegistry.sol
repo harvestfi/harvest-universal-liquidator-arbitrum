@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.17;
 
 // imported contracts and libraries
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -10,6 +9,7 @@ import "../interface/IUniversalLiquidatorRegistry.sol";
 
 // librarise
 import "../libraries/DataTypes.sol";
+import "../libraries/Errors.sol";
 
 // constants and types
 import {ULRegistryStorage} from "./storage/Storage.sol";
@@ -19,8 +19,6 @@ contract UniversalLiquidatorRegistry is
     IUniversalLiquidatorRegistry,
     ULRegistryStorage
 {
-    constructor() public {}
-
     function getPath(
         address _sellToken,
         address _buyToken
@@ -34,24 +32,27 @@ contract UniversalLiquidatorRegistry is
             return retPaths;
         }
 
-        for (uint256 i = 0; i < intermediateTokens.length; i++) {
+        for (uint256 idx; idx < intermediateTokens.length; ) {
             if (
-                paths[_sellToken][intermediateTokens[i]].dex != bytes32(0) &&
-                paths[intermediateTokens[i]][_buyToken].dex != bytes32(0)
+                paths[_sellToken][intermediateTokens[idx]].dex != bytes32(0) &&
+                paths[intermediateTokens[idx]][_buyToken].dex != bytes32(0)
             ) {
                 // found the intermediateToken and intermediateDex
                 DataTypes.SwapInfo[] memory retPaths = new DataTypes.SwapInfo[](
                     2
                 );
                 retPaths[0] = DataTypes.SwapInfo(
-                    dexesInfo[paths[_sellToken][intermediateTokens[i]].dex],
-                    paths[_sellToken][intermediateTokens[i]].paths
+                    dexesInfo[paths[_sellToken][intermediateTokens[idx]].dex],
+                    paths[_sellToken][intermediateTokens[idx]].paths
                 );
                 retPaths[1] = DataTypes.SwapInfo(
-                    dexesInfo[paths[intermediateTokens[i]][_buyToken].dex],
-                    paths[intermediateTokens[i]][_buyToken].paths
+                    dexesInfo[paths[intermediateTokens[idx]][_buyToken].dex],
+                    paths[intermediateTokens[idx]][_buyToken].paths
                 );
                 return retPaths;
+            }
+            unchecked {
+                ++idx;
             }
         }
         revert("Liquidation path is not set");
@@ -64,14 +65,9 @@ contract UniversalLiquidatorRegistry is
         address[] memory _paths
     ) external override onlyOwner {
         // path could also be an empty array
-        require(
-            _sellToken == _paths[0],
-            "The first token of the Uniswap route must be the from token"
-        );
-        require(
-            _buyToken == _paths[_paths.length - 1],
-            "The last token of the Uniswap route must be the to token"
-        );
+        if (_sellToken != _paths[0]) revert Errors.InvalidPathsStart();
+        if (_buyToken != _paths[_paths.length - 1])
+            revert Errors.InvalidPathsEnd();
 
         // path can also be empty
         paths[_sellToken][_buyToken] = DataTypes.PathInfo(_dex, _paths);
@@ -82,7 +78,7 @@ contract UniversalLiquidatorRegistry is
     }
 
     function addDex(bytes32 _name, address _dex) public override onlyOwner {
-        require(!_dexExists(_name), "Dex already exists");
+        if (_dexExists(_name)) revert Errors.DexExists();
         dexesInfo[_name] = _dex;
         allDexes.push(_name);
     }
@@ -91,7 +87,7 @@ contract UniversalLiquidatorRegistry is
         bytes32 _name,
         address _dex
     ) public override onlyOwner {
-        require(_dexExists(_name), "Dex does not exists");
+        if (!_dexExists(_name)) revert Errors.DexDoesNotExist();
         dexesInfo[_name] = _dex;
     }
 
@@ -102,15 +98,21 @@ contract UniversalLiquidatorRegistry is
             if (dexesInfo[allDexes[idx]] != address(0)) {
                 totalDexes++;
             }
+            unchecked {
+                ++idx;
+            }
         }
 
         bytes32[] memory retDexes = new bytes32[](totalDexes);
         uint256 retIdx = 0;
 
-        for (uint256 idx = 0; idx < allDexes.length; idx++) {
+        for (uint256 idx; idx < allDexes.length; ) {
             if (dexesInfo[allDexes[idx]] != address(0)) {
                 retDexes[retIdx] = allDexes[idx];
                 retIdx++;
+            }
+            unchecked {
+                ++idx;
             }
         }
 
