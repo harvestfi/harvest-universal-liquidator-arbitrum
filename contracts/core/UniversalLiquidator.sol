@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.17;
 
 // imported contracts and libraries
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // interfaces
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,9 +13,9 @@ import "../interface/ILiquidityDex.sol";
 
 // librarise
 import "../libraries/DataTypes.sol";
+import "../libraries/Errors.sol";
 
 contract UniversalLiquidator is Ownable, IUniversalLiquidator {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     address public pathRegistry;
@@ -32,36 +31,31 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
             pathRegistry
         ).getPath(_sellToken, _buyToken);
 
-        IERC20(swapInfo[0].paths[0]).safeTransferFrom(
-            _receiver,
+        IERC20(_sellToken).safeTransferFrom(
+            msg.sender,
             address(this),
             _sellAmount
         );
 
-        for (uint256 i = 0; i < swapInfo.length; i++) {
+        for (uint256 idx; idx < swapInfo.length; ) {
             _swap(
-                IERC20(swapInfo[i].paths[0]).balanceOf(address(this)),
+                IERC20(swapInfo[idx].paths[0]).balanceOf(address(this)),
                 _minBuyAmount,
                 address(this),
-                swapInfo[i].dex,
-                swapInfo[i].paths
+                swapInfo[idx].dex,
+                swapInfo[idx].paths
             );
+            unchecked {
+                ++idx;
+            }
         }
 
-        DataTypes.SwapInfo memory lastSwap = swapInfo[swapInfo.length - 1];
+        if (_minBuyAmount > IERC20(_buyToken).balanceOf(address(this)))
+            revert Errors.AmountUnmatch();
 
-        require(
-            _minBuyAmount <
-                IERC20(lastSwap.paths[lastSwap.paths.length - 1]).balanceOf(
-                    address(this)
-                ),
-            "Didn't obtain more than _minBuyAmount"
-        );
-        IERC20(lastSwap.paths[lastSwap.paths.length - 1]).safeTransfer(
+        IERC20(_buyToken).safeTransfer(
             _receiver,
-            IERC20(lastSwap.paths[lastSwap.paths.length - 1]).balanceOf(
-                address(this)
-            )
+            IERC20(_buyToken).balanceOf(address(this))
         );
     }
 
@@ -84,8 +78,8 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
         );
 
         emit Swap(
-            _path[_path.length - 1],
             _path[0],
+            _path[_path.length - 1],
             _receiver,
             msg.sender,
             _sellAmount,
