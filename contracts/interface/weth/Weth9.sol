@@ -2,7 +2,7 @@
 
 /**
  *Submitted for verification at Etherscan.io on 2017-12-12
-*/
+ */
 
 // Copyright (C) 2015, 2016, 2017 Dapphub
 
@@ -20,21 +20,27 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.17;
 
 interface WETH9 {
-
     function balanceOf(address target) external view returns (uint256);
 
-    function deposit() external payable ;
-    function withdraw(uint wad) external ;
-    function totalSupply() external view returns (uint) ;
-    function approve(address guy, uint wad) external returns (bool) ;
-    function transfer(address dst, uint wad) external returns (bool) ;
-    function transferFrom(address src, address dst, uint wad) external returns (bool);
+    function deposit() external payable;
 
+    function withdraw(uint wad) external;
+
+    function totalSupply() external view returns (uint);
+
+    function approve(address guy, uint wad) external returns (bool);
+
+    function transfer(address dst, uint wad) external returns (bool);
+
+    function transferFrom(
+        address src,
+        address dst,
+        uint wad
+    ) external returns (bool);
 }
-
 
 /*
                     GNU GENERAL PUBLIC LICENSE
