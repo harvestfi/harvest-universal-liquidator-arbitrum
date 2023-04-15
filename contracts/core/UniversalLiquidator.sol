@@ -11,7 +11,7 @@ import "../interface/IUniversalLiquidator.sol";
 import "../interface/IUniversalLiquidatorRegistry.sol";
 import "../interface/ILiquidityDex.sol";
 
-// librarise
+// libraries
 import "../libraries/DataTypes.sol";
 import "../libraries/Errors.sol";
 

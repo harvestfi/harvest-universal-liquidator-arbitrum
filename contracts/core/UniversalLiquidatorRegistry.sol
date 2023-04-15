@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // interfaces
 import "../interface/IUniversalLiquidatorRegistry.sol";
 
-// librarise
+// libraries
 import "../libraries/DataTypes.sol";
 import "../libraries/Errors.sol";
 
