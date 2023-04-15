@@ -13,48 +13,50 @@ import "../../interface/uniswap/ISwapRouter.sol";
 // libraries
 import "../../libraries/Addresses.sol";
 
-contract UniV3Dex is ILiquidityDex, Ownable {
+// constants and types
+import {UniswapV3DexStorage} from "../storage/UniswapV3Dex.sol";
+
+contract UniV3Dex is ILiquidityDex, Ownable, UniswapV3DexStorage {
     using SafeERC20 for IERC20;
 
-    mapping(address => mapping(address => uint24)) public storedPairFee;
-
     function doSwap(
-        uint256 amountIn,
-        uint256 minAmountOut,
-        address spender,
-        address target,
-        address[] memory pathWithoutFee
+        uint256 _sellAmount,
+        uint256 _minBuyAmount,
+        address _spender,
+        address _receiver,
+        address[] memory _path
     ) public override returns (uint256) {
-        address currentSellToken = pathWithoutFee[0];
+        address sellToken = _path[0];
 
-        IERC20(currentSellToken).safeTransferFrom(
-            spender,
+        IERC20(sellToken).safeTransferFrom(
+            _spender,
             address(this),
-            amountIn
+            _sellAmount
         );
-        IERC20(currentSellToken).safeIncreaseAllowance(
+        IERC20(sellToken).safeIncreaseAllowance(
             Addresses.uniswapV3Router,
-            amountIn
+            _sellAmount
         );
 
-        bytes memory pathWithFee = abi.encodePacked(currentSellToken);
-        for (uint256 i = 1; i < pathWithoutFee.length; i++) {
-            address currentBuyToken = pathWithoutFee[i];
-            pathWithFee = abi.encodePacked(
-                pathWithFee,
-                pairFee(currentSellToken, currentBuyToken),
-                currentBuyToken
+        bytes memory encodedPath = abi.encodePacked(sellToken);
+        for (uint256 idx = 1; idx < _path.length; ) {
+            encodedPath = abi.encodePacked(
+                encodedPath,
+                pairFee(_path[idx - 1], _path[idx]),
+                _path[idx]
             );
-            currentSellToken = currentBuyToken;
+            unchecked {
+                ++idx;
+            }
         }
 
         ISwapRouter.ExactInputParams memory param = ISwapRouter
             .ExactInputParams({
-                path: pathWithFee,
-                recipient: target,
+                path: encodedPath,
+                recipient: _receiver,
                 deadline: block.timestamp,
-                amountIn: amountIn,
-                amountOutMinimum: minAmountOut
+                amountIn: _sellAmount,
+                amountOutMinimum: _minBuyAmount
             });
 
         uint256 actualAmountOut = ISwapRouter(Addresses.uniswapV3Router)
@@ -63,24 +65,24 @@ contract UniV3Dex is ILiquidityDex, Ownable {
     }
 
     function pairFee(
-        address sellToken,
-        address buyToken
+        address _sellToken,
+        address _buyToken
     ) public view returns (uint24 fee) {
-        if (storedPairFee[sellToken][buyToken] != 0) {
-            return storedPairFee[sellToken][buyToken];
-        } else if (storedPairFee[buyToken][sellToken] != 0) {
-            return storedPairFee[buyToken][sellToken];
+        if (_pairFee[_sellToken][_buyToken] != 0) {
+            return _pairFee[_sellToken][_buyToken];
+        } else if (_pairFee[_buyToken][_sellToken] != 0) {
+            return _pairFee[_buyToken][_sellToken];
         } else {
             return 3000;
         }
     }
 
     function setFee(
-        address token0,
-        address token1,
-        uint24 fee
+        address _token0,
+        address _token1,
+        uint24 _fee
     ) public onlyOwner {
-        storedPairFee[token0][token1] = fee;
+        _pairFee[_token0][_token1] = _fee;
     }
 
     receive() external payable {}
