@@ -12,7 +12,7 @@ import "../libraries/DataTypes.sol";
 import "../libraries/Errors.sol";
 
 // constants and types
-import {ULRegistryStorage} from "./storage/Storage.sol";
+import {ULRegistryStorage} from "./storage/ULRegistry.sol";
 
 contract UniversalLiquidatorRegistry is
     Ownable,
