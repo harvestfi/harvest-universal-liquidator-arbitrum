@@ -16,7 +16,7 @@ import "../../libraries/Addresses.sol";
 // constants and types
 import {UniswapV3DexStorage} from "../storage/UniswapV3Dex.sol";
 
-contract UniV3Dex is ILiquidityDex, Ownable, UniswapV3DexStorage {
+contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
     using SafeERC20 for IERC20;
 
     function doSwap(
