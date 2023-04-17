@@ -2,8 +2,7 @@
 pragma solidity 0.8.17;
 
 library Errors {
-    error InvalidPathsStart();
-    error InvalidPathsEnd();
+    error InvalidLength();
     error DexExists();
     error DexDoesNotExist();
 

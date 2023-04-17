@@ -33,6 +33,7 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
             address(this),
             _sellAmount
         );
+
         IERC20(sellToken).safeIncreaseAllowance(
             Addresses.uniswapV3Router,
             _sellAmount

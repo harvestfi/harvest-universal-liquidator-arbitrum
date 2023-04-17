@@ -20,7 +20,7 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
 
     address public pathRegistry;
 
-    function swapTokenOnMultipleDEXes(
+    function swap(
         address _sellToken,
         address _buyToken,
         uint256 _sellAmount,
@@ -40,7 +40,7 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
         for (uint256 idx; idx < swapInfo.length; ) {
             _swap(
                 IERC20(swapInfo[idx].paths[0]).balanceOf(address(this)),
-                _minBuyAmount,
+                1,
                 address(this),
                 swapInfo[idx].dex,
                 swapInfo[idx].paths

@@ -59,22 +59,25 @@ contract UniversalLiquidatorRegistry is
     }
 
     function setPath(
-        address _sellToken,
-        address _buyToken,
         bytes32 _dex,
         address[] memory _paths
     ) external override onlyOwner {
+        // dex should exist
+        if (_dexExists(_dex)) revert Errors.DexExists();
         // path could also be an empty array
-        if (_sellToken != _paths[0]) revert Errors.InvalidPathsStart();
-        if (_buyToken != _paths[_paths.length - 1])
-            revert Errors.InvalidPathsEnd();
+        if (_paths.length < 2) revert Errors.InvalidLength();
 
         // path can also be empty
-        paths[_sellToken][_buyToken] = DataTypes.PathInfo(_dex, _paths);
+        paths[_paths[0]][_paths[_paths.length - 1]] = DataTypes.PathInfo(
+            _dex,
+            _paths
+        );
     }
 
-    function addIntermediateToken(address _token) public override onlyOwner {
-        intermediateTokens.push(_token);
+    function setIntermediateToken(
+        address[] memory _token
+    ) public override onlyOwner {
+        intermediateTokens = _token;
     }
 
     function addDex(bytes32 _name, address _dex) public override onlyOwner {

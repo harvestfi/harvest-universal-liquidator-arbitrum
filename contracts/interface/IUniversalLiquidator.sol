@@ -11,7 +11,7 @@ interface IUniversalLiquidator {
         uint256 minBuyAmount
     );
 
-    function swapTokenOnMultipleDEXes(
+    function swap(
         address _sellToken,
         address _buyToken,
         uint256 _sellAmount,
