@@ -33,15 +33,19 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
 
         IERC20(_sellToken).safeTransferFrom(
             msg.sender,
-            address(this),
+            swapInfo[0].dex,
             _sellAmount
         );
 
         for (uint256 idx; idx < swapInfo.length; ) {
+            address receiver = address(this);
+            if (idx != swapInfo.length - 1) {
+                receiver = swapInfo[idx + 1].dex;
+            }
             _swap(
-                IERC20(swapInfo[idx].paths[0]).balanceOf(address(this)),
+                IERC20(swapInfo[idx].paths[0]).balanceOf(swapInfo[0].dex),
                 1,
-                address(this),
+                receiver,
                 swapInfo[idx].dex,
                 swapInfo[idx].paths
             );
@@ -66,9 +70,6 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
         address _dex,
         address[] memory _path
     ) internal {
-        IERC20(_path[0]).safeApprove(_dex, 0);
-        IERC20(_path[0]).safeApprove(_dex, _sellAmount);
-
         ILiquidityDex(_dex).doSwap(
             _sellAmount,
             _minBuyAmount,

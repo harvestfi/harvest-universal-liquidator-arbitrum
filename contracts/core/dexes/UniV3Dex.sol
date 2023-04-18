@@ -28,12 +28,6 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
     ) public override returns (uint256) {
         address sellToken = _path[0];
 
-        IERC20(sellToken).safeTransferFrom(
-            _spender,
-            address(this),
-            _sellAmount
-        );
-
         IERC20(sellToken).safeIncreaseAllowance(
             Addresses.uniswapV3Router,
             _sellAmount
