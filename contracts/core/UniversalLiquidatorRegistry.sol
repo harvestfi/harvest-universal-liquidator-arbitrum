@@ -63,7 +63,7 @@ contract UniversalLiquidatorRegistry is
         address[] memory _paths
     ) external override onlyOwner {
         // dex should exist
-        if (_dexExists(_dex)) revert Errors.DexExists();
+        if (!_dexExists(_dex)) revert Errors.DexDoesNotExist();
         // path could also be an empty array
         if (_paths.length < 2) revert Errors.InvalidLength();
 
