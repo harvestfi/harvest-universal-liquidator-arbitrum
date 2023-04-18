@@ -1,0 +1,22 @@
+{
+    "list": [
+        {
+            "sellToken": {
+                "name": "DAI",
+                "address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                "whale": "0x0787bda6907e9d18d026e882cabb25c8ec636e98"
+            },
+            "buyToken": {
+                "name": "Crv",
+                "address": "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978",
+                "whale": "0x4a65e76be1b4e8dd6ef618277fa55200e3f8f20a"
+            },
+            "paths": [
+                "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978"
+            ],
+            "dex": "uniV3"
+        }
+    ]
+}

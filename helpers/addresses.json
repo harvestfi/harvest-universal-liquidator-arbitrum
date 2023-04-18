@@ -1,4 +1,5 @@
 {
     "UniV3RouterAddr": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-    "UniUniversalRouterAddr": "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5"
+    "UniUniversalRouterAddr": "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5",
+    "Governance": "0xF066789028fE31D4f53B69B81b328B8218Cc0641"
 }
