@@ -23,7 +23,7 @@ function getNetworks(): NetworksUserConfig {
       accounts: accounts,
       forking: {
         url: `https://arb-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
-        // blockNumber: 15087700, // <-- edit here
+        // blockNumber: 82350734, // <-- edit here
       },
     },
     mainnet: {
