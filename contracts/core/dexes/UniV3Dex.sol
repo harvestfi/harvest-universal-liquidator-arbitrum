@@ -22,7 +22,6 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
     function doSwap(
         uint256 _sellAmount,
         uint256 _minBuyAmount,
-        address _spender,
         address _receiver,
         address[] memory _path
     ) public override returns (uint256) {

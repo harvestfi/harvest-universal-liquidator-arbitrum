@@ -73,7 +73,6 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
         ILiquidityDex(_dex).doSwap(
             _sellAmount,
             _minBuyAmount,
-            address(this),
             _receiver,
             _path
         );
