@@ -14,11 +14,9 @@ function getNetworks(): NetworksUserConfig {
     throw new Error(
       `ALCHEMEY_KEY env var not set. Copy .env.template to .env and set the env var`
     )
-  if (!process.env.MNEMONIC)
-    throw new Error(`MNEMONIC env var not set. Copy .env.template to .env and set the env var`)
 
   const alchemyApiKey = process.env.ALCHEMEY_KEY;
-  const accounts = { mnemonic: process.env.MNEMONIC };
+  const accounts = process.env.MNEMONIC ? { mnemonic: process.env.MNEMONIC } : [];
 
   return {
     hardhat: {
