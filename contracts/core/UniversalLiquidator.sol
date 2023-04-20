@@ -37,14 +37,21 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
             _sellAmount
         );
 
+        uint256 minBuyAmount;
+        address receiver;
         for (uint256 idx; idx < swapInfo.length; ) {
-            address receiver = address(this);
             if (idx != swapInfo.length - 1) {
+                // if not last element, set receiver to next dex and set minBuyAmount to 1
+                minBuyAmount = 1;
                 receiver = swapInfo[idx + 1].dex;
+            } else {
+                // if last element, set minBuyAmount to _minBuyAmount
+                minBuyAmount = _minBuyAmount;
+                receiver = _receiver;
             }
             _swap(
                 IERC20(swapInfo[idx].paths[0]).balanceOf(swapInfo[0].dex),
-                1,
+                minBuyAmount,
                 receiver,
                 swapInfo[idx].dex,
                 swapInfo[idx].paths
@@ -53,14 +60,6 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
                 ++idx;
             }
         }
-
-        if (_minBuyAmount > IERC20(_buyToken).balanceOf(address(this)))
-            revert Errors.AmountUnmatch();
-
-        IERC20(_buyToken).safeTransfer(
-            _receiver,
-            IERC20(_buyToken).balanceOf(address(this))
-        );
     }
 
     function _swap(
