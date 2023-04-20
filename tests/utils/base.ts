@@ -41,7 +41,7 @@ export async function deployDexes(governance: SignerWithAddress) {
     for (const dex of dexesList) {
         const Dex = await ethers.getContractFactory(dex.file);
         const deployedDex = await Dex.deploy();
-        console.log("Dex deployed at:", deployedDex.address);
+        console.log(`Dex ${dex.name} deployed at:`, deployedDex.address);
         await deployedDex.transferOwnership(governance.address);
         result.push({
             name: dex.name, address: deployedDex.address
