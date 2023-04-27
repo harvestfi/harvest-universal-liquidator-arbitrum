@@ -13,78 +13,97 @@ import "../../interface/balancer/IBVault.sol";
 // libraries
 import "../../libraries/Addresses.sol";
 
-contract BalancerDex is ILiquidityDex, Ownable {
+// constants and types
+import {BalancerDexStorage} from "../storage/BalancerDex.sol";
+
+import "hardhat/console.sol";
+
+contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
     using SafeERC20 for IERC20;
 
-    receive() external payable {}
-
-    address public weth = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    address public bal = address(0xba100000625a3754423978a60c9317c58a424e3D);
-    address public note = address(0xCFEAead4947f0705A14ec42aC3D44129E1Ef3eD5);
-
-    mapping(address => mapping(address => bytes32)) public poolIds;
-
-    constructor() {
-        poolIds[weth][bal] = bytes32(
-            0x5c6ee304399dbdb9c8ef030ab642b10820db8f56000200000000000000000014
-        );
-        poolIds[bal][weth] = bytes32(
-            0x5c6ee304399dbdb9c8ef030ab642b10820db8f56000200000000000000000014
-        );
-        poolIds[weth][note] = bytes32(
-            0x5122e01d819e58bb2e22528c0d68d310f0aa6fd7000200000000000000000163
-        );
-        poolIds[note][weth] = bytes32(
-            0x5122e01d819e58bb2e22528c0d68d310f0aa6fd7000200000000000000000163
-        );
-    }
-
-    function changePoolId(
+    function setPoolId(
         address _token0,
         address _token1,
-        bytes32 _poolId
+        bytes32[] memory _poolId
     ) external onlyOwner {
         poolIds[_token0][_token1] = _poolId;
         poolIds[_token1][_token0] = _poolId;
     }
 
+    function getPoolId(
+        address _token0,
+        address _token1
+    ) external view onlyOwner returns (bytes32[] memory) {
+        return poolIds[_token0][_token1];
+    }
+
     function doSwap(
-        uint256 amountIn,
-        uint256 minAmountOut,
-        address target,
-        address[] memory path
+        uint256 _sellAmount,
+        uint256 _minBuyAmount,
+        address _receiver,
+        address[] memory _path
     ) public override returns (uint256) {
-        require(path.length == 2, "Only supports single swaps");
-        address buyToken = path[1];
-        address sellToken = path[0];
+        console.log(_sellAmount);
+        console.log(_minBuyAmount);
 
-        IBVault.SingleSwap memory singleSwap;
-        IBVault.SwapKind swapKind = IBVault.SwapKind.GIVEN_IN;
+        address sellToken = _path[0];
+        address buyToken = _path[_path.length - 1];
 
-        singleSwap.poolId = poolIds[sellToken][buyToken];
-        singleSwap.kind = swapKind;
-        singleSwap.assetIn = IAsset(sellToken);
-        singleSwap.assetOut = IAsset(buyToken);
-        singleSwap.amount = amountIn;
-        singleSwap.userData = abi.encode(0);
+        console.log(IERC20(sellToken).balanceOf(address(this)));
+        console.log(IERC20(buyToken).balanceOf(address(this)));
+
+        bytes32[] memory poolId = poolIds[sellToken][buyToken];
+
+        IBVault.BatchSwapStep[] memory swaps = new IBVault.BatchSwapStep[](
+            _path.length - 1
+        );
+
+        swaps[0].amount = _sellAmount;
+        for (uint256 idx; idx < _path.length - 1; ) {
+            swaps[idx].poolId = poolId[idx];
+            swaps[idx].assetInIndex = idx;
+            swaps[idx].assetOutIndex = idx + 1;
+
+            unchecked {
+                ++idx;
+            }
+        }
+
+        IAsset[] memory assets = new IAsset[](_path.length);
+        for (uint256 i = 0; i < _path.length; i++) {
+            assets[i] = IAsset(_path[i]);
+        }
 
         IBVault.FundManagement memory funds;
         funds.sender = address(this);
-        funds.fromInternalBalance = false;
-        funds.recipient = payable(target);
-        funds.toInternalBalance = false;
+        funds.recipient = payable(_receiver);
+
+        int256[] memory limits = new int256[](_path.length);
+        limits[0] = int256(_sellAmount);
+        limits[_path.length - 1] = -int256(_minBuyAmount);
 
         IERC20(sellToken).safeIncreaseAllowance(
             Addresses.balancerVault,
-            amountIn
+            _sellAmount
         );
 
-        return
-            IBVault(Addresses.balancerVault).swap(
-                singleSwap,
+        //return
+        uint256(
+            IBVault(Addresses.balancerVault).batchSwap(
+                IBVault.SwapKind.GIVEN_IN,
+                swaps,
+                assets,
                 funds,
-                minAmountOut,
+                limits,
                 block.timestamp
-            );
+            )[0]
+        );
+
+        console.log(IERC20(sellToken).balanceOf(address(this)));
+        console.log(IERC20(sellToken).balanceOf(_receiver));
+        console.log(IERC20(buyToken).balanceOf(address(this)));
+        console.log(IERC20(buyToken).balanceOf(_receiver));
     }
+
+    receive() external payable {}
 }
