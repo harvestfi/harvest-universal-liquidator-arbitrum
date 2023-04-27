@@ -1,0 +1,23 @@
+{
+    "list": [
+        {
+            "name": "balancer",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "BAL",
+                        "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    },
+                    "poolIds": [
+                        "0xcc65a812ce382ab909a11e434dbf75b34f1cc59d000200000000000000000001",
+                        "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
+                    ]
+                }
+            ]
+        }
+    ]
+}
