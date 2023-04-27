@@ -53,9 +53,7 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
                 amountOutMinimum: _minBuyAmount
             });
 
-        uint256 actualAmountOut = ISwapRouter(Addresses.uniswapV3Router)
-            .exactInput(param);
-        return actualAmountOut;
+        return ISwapRouter(Addresses.uniswapV3Router).exactInput(param);
     }
 
     function pairFee(
