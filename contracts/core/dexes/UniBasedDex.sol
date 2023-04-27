@@ -11,42 +11,37 @@ import "../../interface/ILiquidityDex.sol";
 import "../../interface/uniswap/v2/IUniswapV2Router02.sol";
 import "../../interface/uniswap/v2/IUniswapV2Factory.sol";
 
-contract UniBasedDex is ILiquidityDex, Ownable {
+// constants and types
+import {UniBaseDexStorage} from "../storage/UniBaseDex.sol";
+
+contract UniBasedDex is Ownable, ILiquidityDex, UniBaseDexStorage {
     using SafeERC20 for IERC20;
 
-    receive() external payable {}
-
-    address private uniswapRouter;
-    address private uniswapFactory;
-
-    constructor(address routerAddress, address factoryAddress) {
-        uniswapRouter = routerAddress;
-        uniswapFactory = factoryAddress;
+    constructor(address _router) {
+        router = _router;
     }
 
     function doSwap(
-        uint256 amountIn,
-        uint256 minAmountOut,
-        address target,
-        address[] memory path
+        uint256 _sellAmount,
+        uint256 _minBuyAmount,
+        address _receiver,
+        address[] memory _path
     ) public override returns (uint256) {
-        address buyToken = path[path.length - 1];
-        address sellToken = path[0];
+        address sellToken = _path[0];
 
-        require(
-            buyToken == path[path.length - 1],
-            "The last token on the path should be the buytoken"
-        );
-        IERC20(sellToken).safeIncreaseAllowance(uniswapRouter, amountIn);
+        IERC20(sellToken).safeIncreaseAllowance(router, _sellAmount);
 
-        uint256[] memory returned = IUniswapV2Router02(uniswapRouter)
+        uint256[] memory returned = IUniswapV2Router02(router)
             .swapExactTokensForTokens(
-                amountIn,
-                minAmountOut,
-                path,
-                target,
+                _sellAmount,
+                _minBuyAmount,
+                _path,
+                _receiver,
                 block.timestamp
             );
+
         return returned[returned.length - 1];
     }
+
+    receive() external payable {}
 }
