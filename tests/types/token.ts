@@ -1,7 +1,7 @@
 export interface IToken {
     name: string;
     address: string;
-    whale: string;
+    whale?: string;
 }
 
 export interface ITokenPair {
