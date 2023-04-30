@@ -73,7 +73,7 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
         address _token0,
         address _token1,
         uint24 _fee
-    ) public onlyOwner {
+    ) external onlyOwner {
         _pairFee[_token0][_token1] = _fee;
     }
 

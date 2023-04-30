@@ -50,7 +50,7 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
                 receiver = _receiver;
             }
             _swap(
-                IERC20(swapInfo[idx].paths[0]).balanceOf(swapInfo[0].dex),
+                IERC20(swapInfo[idx].paths[0]).balanceOf(swapInfo[idx].dex),
                 minBuyAmount,
                 receiver,
                 swapInfo[idx].dex,
@@ -87,6 +87,7 @@ contract UniversalLiquidator is Ownable, IUniversalLiquidator {
     }
 
     function setPathRegistry(address _pathRegistry) public onlyOwner {
+        if (_pathRegistry == address(0)) revert Errors.InvalidAddress();
         pathRegistry = _pathRegistry;
     }
 
