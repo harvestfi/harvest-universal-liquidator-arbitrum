@@ -6,7 +6,7 @@
                 {
                     "sellToken": {
                         "name": "BAL",
-                        "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A"
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8"
                     },
                     "buyToken": {
                         "name": "ARB",
@@ -14,6 +14,61 @@
                     },
                     "poolIds": [
                         "0xcc65a812ce382ab909a11e434dbf75b34f1cc59d000200000000000000000001",
+                        "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "balancer",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    },
+                    "poolIds": [
+                        "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "balancer",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    },
+                    "poolIds": [
+                        "0x178e029173417b1f9c8bc16dcec6f697bc323746000200000000000000000158"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "balancer",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    },
+                    "poolIds": [
+                        "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
                     ]
                 }
