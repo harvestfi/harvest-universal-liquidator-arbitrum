@@ -55,7 +55,7 @@ contract UniversalLiquidatorRegistry is
                 ++idx;
             }
         }
-        revert("Liquidation path is not set");
+        revert Errors.PathsNotExist();
     }
 
     function setPath(
@@ -97,7 +97,7 @@ contract UniversalLiquidatorRegistry is
     function getAllDexes() public view override returns (bytes32[] memory) {
         uint256 totalDexes = 0;
 
-        for (uint256 idx = 0; idx < allDexes.length; idx++) {
+        for (uint256 idx = 0; idx < allDexes.length; ) {
             if (dexesInfo[allDexes[idx]] != address(0)) {
                 totalDexes++;
             }
