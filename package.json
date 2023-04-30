@@ -1,13 +1,13 @@
 {
   "name": "harvest-universal-liquidator-arbitrum",
   "version": "1.0.0",
-  "description": "The Hardhat environment is configured to use Mainnet fork by default and provides templates and utilities for strategy development and testing.",
-  "main": "hardhat.config.js",
-  "directories": {
-    "test": "test"
-  },
+  "description": "This is a liquidation router that efficiently liquidates assets across multiple DEXes, including Uniswap, Sushiswap, Balancer, etc.",
+  "homepage": "https://github.com/harvestfi/harvest-universal-liquidator-arbitrum",
+  "license": "MIT",
+  "main": "hardhat.config.ts",
   "scripts": {
-    "test": "echo \"Error: please run tests individually\" && exit 1"
+    "compile": "hardhat compile",
+    "test": "hardhat test"
   },
   "author": "",
   "devDependencies": {
@@ -54,7 +54,7 @@
     },
     "paths": {
       "contracts": "./contracts",
-      "tests": "./test",
+      "tests": "./tests",
       "cache": "./cache",
       "build": {
         "contracts": "./build/contracts",
