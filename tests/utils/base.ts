@@ -1,17 +1,42 @@
 import dexes from "../../helpers/dexes.json";
+import poolIds from "../../helpers/poolIds.json";
+import tokenPairs from "../../helpers/token-pairs.json";
+import intermediateTokens from "../../helpers/intermediate-tokens.json";
 
-import * as utils from "./index";
+import * as utils from "./hh-utils";
 import * as types from "../types";
-
-import { contracts } from "../../build/typechain";
-import { openzeppelin } from "../../build/typechain";
 
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-export async function setupSystem(governance: SignerWithAddress) {
+export async function setupTokens(tokenPair: types.ITokenPair, faucet: SignerWithAddress) {
+    // create instances
+    const sellToken = await ethers.getContractAt("IERC20", tokenPair.sellToken.address);
+    const buyToken = await ethers.getContractAt("IERC20", tokenPair.buyToken.address);
+
+    // check if pairInfo has whale
+    const whale = await async function (address: string | undefined) {
+        if (address) {
+            return await ethers.getSigner(address);
+        } else {
+            throw new Error("No whale address");
+        }
+    }(tokenPair.sellToken.whale);
+
+    await utils.impersonates([whale.address]);
+
+    // setup balance
+    await faucet.sendTransaction({
+        to: whale.address,
+        value: ethers.utils.parseEther("5") // 5 ether
+    })
+
+    return { sellToken, buyToken, whale } as const;
+}
+
+export async function setupSystemBase(governance: SignerWithAddress) {
     const ULR = await ethers.getContractFactory("UniversalLiquidatorRegistry");
     const registry = await ULR.deploy();
     await registry.transferOwnership(governance.address);
@@ -22,14 +47,56 @@ export async function setupSystem(governance: SignerWithAddress) {
     await universalLiquidator.transferOwnership(governance.address);
 
     const deployedDexes = await deployDexes(governance);
-    deployedDexes.forEach(async (dex: types.IDex) => {
-        await addNexDexes(governance, registry, dex);
-    });
 
     return { registry, universalLiquidator, deployedDexes } as const;
 }
 
-export async function deployDexes(governance: SignerWithAddress) {
+export async function setupDexes(governance: SignerWithAddress, registry: Contract, dexes: types.IDex[]) {
+    dexes.forEach(async (dex: types.IDex) => {
+        await addNewDex(governance, registry, dex);
+    });
+}
+
+export async function setupIntermediateTokens(governance: SignerWithAddress, registry: Contract) {
+    const intermediateTokensList = intermediateTokens.list.map((token) => {
+        return token.address;
+    });
+    await registry.connect(governance).setIntermediateToken(intermediateTokensList);
+    intermediateTokensList.forEach(async (token, index) => {
+        expect(await registry.intermediateTokens(index)).to.equal(token);
+    });
+}
+
+export async function setupPaths(governance: SignerWithAddress, registry: Contract,) {
+    const tokenPairList = tokenPairs.list;
+    for (const tokenPair of tokenPairList) {
+        await setPath(governance, registry, tokenPair);
+    }
+}
+
+export async function setupPools(governance: SignerWithAddress, deployedDexes: types.IDex[]) {
+    poolIds.list.forEach(async (poolIds) => {
+        const dexName = poolIds.name;
+        const deployedDex = deployedDexes.find((dex) => dex?.name === dexName);
+        const dexFile = dexes.list.find((dex) => dex?.name === dexName);
+        if (!deployedDex) {
+            throw new Error(`Could not find dex with name ${dexName}`);
+        }
+        if (!dexFile) {
+            throw new Error(`Could not find contract file with name ${dexName}`);
+        }
+        const dexContract = await ethers.getContractAt(dexFile.file, deployedDex.address);
+        poolIds.pools.forEach(async (poolId) => {
+            await addNewPoolId(governance, dexContract, poolId);
+        });
+    });
+}
+
+export async function setFee() {
+
+}
+
+async function deployDexes(governance: SignerWithAddress) {
     const result = [];
     const dexesList = dexes.list;
     for (const dex of dexesList) {
@@ -43,30 +110,22 @@ export async function deployDexes(governance: SignerWithAddress) {
     return result
 }
 
-export async function addNexDexes(governance: SignerWithAddress, registry: contracts.core.UniversalLiquidatorRegistry, dex: types.IDex) {
+export async function addNewDex(governance: SignerWithAddress, registry: Contract, dex: types.IDex) {
     const hexName = ethers.utils.formatBytes32String(dex.name);
     await registry.connect(governance).addDex(hexName, dex.address);
     expect(await registry.dexesInfo(hexName)).to.equal(dex.address);
 }
 
-export async function updateIntermediateToken(token: string[], registry: contracts.core.UniversalLiquidatorRegistry, governance: SignerWithAddress) {
-    const intermediateTokens = token;
-    await registry.connect(governance).setIntermediateToken(intermediateTokens);
-    intermediateTokens.forEach(async (token, index) => {
-        expect(await registry.intermediateTokens(index)).to.equal(token);
-    });
-}
-
-export async function addPaths(pariInfo: types.ITokenPair, registry: contracts.core.UniversalLiquidatorRegistry, governance: SignerWithAddress) {
-    const path = pariInfo.paths;
-    await registry.connect(governance).setPath(ethers.utils.formatBytes32String(pariInfo.dex), path);
+export async function setPath(governance: SignerWithAddress, registry: Contract, pairInfo: types.ITokenPair) {
+    const path = pairInfo.paths;
+    await registry.connect(governance).setPath(ethers.utils.formatBytes32String(pairInfo.dex), path);
     const resultPath = await registry.getPath(path[0], path[path.length - 1]);
     path.forEach(async (token, index) => {
         expect(resultPath[0].paths[index]).to.equal(token);
     });
 }
 
-export async function addPoolIds(poolInfo: types.IPool, dex: Contract, governance: SignerWithAddress) {
+export async function addNewPoolId(governance: SignerWithAddress, dex: Contract, poolInfo: types.IPool) {
     const path = poolInfo.poolIds;
     const sellToken = poolInfo.sellToken.address;
     const buyToken = poolInfo.buyToken.address;
@@ -76,42 +135,4 @@ export async function addPoolIds(poolInfo: types.IPool, dex: Contract, governanc
     path.forEach(async (poolId, index) => {
         expect(resultPath[index]).to.equal(poolId);
     });
-}
-
-export async function swapTest(farmer: SignerWithAddress, pariInfo: types.ITokenPair, universalLiquidator: contracts.core.UniversalLiquidator, faucet: SignerWithAddress) {
-    // create instances
-    let sellToken: openzeppelin.contracts.token.erc20.IERC20
-    let buyToken: openzeppelin.contracts.token.erc20.IERC20;
-    let whale: SignerWithAddress;
-
-    sellToken = await ethers.getContractAt("IERC20", pariInfo.sellToken.address);
-    buyToken = await ethers.getContractAt("IERC20", pariInfo.buyToken.address);
-
-    // check if pairInfo has whale
-    if (pariInfo.sellToken.whale) {
-        whale = await ethers.getSigner(pariInfo.sellToken.whale);
-    } else {
-        throw new Error("No whale address");
-    }
-
-    await utils.impersonates([whale.address]);
-
-    // setup balance
-    await faucet.sendTransaction({
-        to: whale.address,
-        value: ethers.utils.parseEther("5") // 5 ether
-    })
-    await faucet.sendTransaction({
-        to: farmer.address,
-        value: ethers.utils.parseEther("5") // 5 ether
-    })
-    const balance = await sellToken.balanceOf(whale.address);
-    await sellToken.connect(whale).transfer(farmer.address, balance);
-
-    // execute swap
-    expect(await buyToken.balanceOf(farmer.address)).to.equal(0);
-    await sellToken.connect(farmer).approve(universalLiquidator.address, balance);
-    await universalLiquidator.connect(farmer).swap(sellToken.address, buyToken.address, balance, 1, farmer.address);
-    expect(await sellToken.balanceOf(farmer.address)).to.equal(0);
-    expect(await buyToken.balanceOf(farmer.address)).to.gt(0);
 }
