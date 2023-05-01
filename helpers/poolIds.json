@@ -16,12 +16,7 @@
                         "0xcc65a812ce382ab909a11e434dbf75b34f1cc59d000200000000000000000001",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
                     ]
-                }
-            ]
-        },
-        {
-            "name": "balancer",
-            "pools": [
+                },
                 {
                     "sellToken": {
                         "name": "wstETH",
@@ -34,12 +29,7 @@
                     "poolIds": [
                         "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316"
                     ]
-                }
-            ]
-        },
-        {
-            "name": "balancer",
-            "pools": [
+                },
                 {
                     "sellToken": {
                         "name": "wstETH",
@@ -52,12 +42,7 @@
                     "poolIds": [
                         "0x178e029173417b1f9c8bc16dcec6f697bc323746000200000000000000000158"
                     ]
-                }
-            ]
-        },
-        {
-            "name": "balancer",
-            "pools": [
+                },
                 {
                     "sellToken": {
                         "name": "wstETH",
