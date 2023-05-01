@@ -236,21 +236,111 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
 
             const testTokenPair = tokenPairs.test[0];
             const setPathTx = registry.connect(testFarmer).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
-            await expect(setPathTx).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(setPathTx).to.be.rejectedWith("Ownable: caller is not the owner");
             await registry.connect(governance).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
+            const path = await registry.getPath(testTokenPair.sellToken.address, testTokenPair.buyToken.address);
+            expect(path[0].paths).to.be.eql(testTokenPair.paths);
         });
         it("Only owner can setIntermediateToken", async function () {
+            ////** Setup Accounts & Addresses *////
+            const { testFarmer, governance } = await loadFixture(setupAccounts);
+            // deploy contracts
+            const { registry } = await utils.setupSystemBase(governance);
+
+            const setIntermediateTokenTx = registry.connect(testFarmer).setIntermediateToken([]);
+            await expect(setIntermediateTokenTx).to.be.rejectedWith("Ownable: caller is not the owner");
+            await registry.connect(governance).setIntermediateToken([]);
+            expect(await registry.getAllIntermediateTokens()).to.be.eql([]);
+        });
+        it("Only owner can addDex", async function () {
+            ////** Setup Accounts & Addresses *////
+            const { testFarmer, governance } = await loadFixture(setupAccounts);
+            // deploy contracts
+            const { registry, deployedDexes } = await utils.setupSystemBase(governance);
+            // add dexes as non owner, should fail
+            const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
+            if (!balancerDex) throw new Error(`Could not find dex with name balancer`);
+            const addDexTx = registry.connect(testFarmer).addDex(ethers.utils.formatBytes32String(balancerDex.name), balancerDex.address);
+            await expect(addDexTx).to.be.rejectedWith("Ownable: caller is not the owner");
+
+            // add dexes as owner, should succeed
+            await registry.connect(governance).addDex(ethers.utils.formatBytes32String(balancerDex.name), balancerDex.address);
+            expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(balancerDex.address);
         });
         it("Only owner can changeDexAddress", async function () {
+            ////** Setup Accounts & Addresses *////
+            const { testFarmer, governance } = await loadFixture(setupAccounts);
+            // deploy contracts
+            const { registry, deployedDexes } = await utils.setupSystemBase(governance);
+            // add dexes
+            const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
+            if (!balancerDex) throw new Error(`Could not find dex with name balancer`);
+            await utils.addNewDex(governance, registry, balancerDex);
+
+            const randomAddress = ethers.Wallet.createRandom().address;
+            const changeDexAddressTx = registry.connect(testFarmer).changeDexAddress(ethers.utils.formatBytes32String(balancerDex.name), randomAddress);
+            await expect(changeDexAddressTx).to.be.rejectedWith("Ownable: caller is not the owner");
+            await registry.connect(governance).changeDexAddress(ethers.utils.formatBytes32String(balancerDex.name), randomAddress);
+            expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(randomAddress);
         });
     });
 
     describe("Depend on the Existence of Dex", function () {
         it("Should setPath only if the dex exist", async function () {
+            ////** Setup Accounts & Addresses *////
+            const { governance } = await loadFixture(setupAccounts);
+            // deploy contracts
+            const { registry, deployedDexes } = await utils.setupSystemBase(governance);
+
+            // set path for non existent dex, should fail
+            const testTokenPair = tokenPairs.test[0];
+            const setPathTx = registry.connect(governance).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
+            await expect(setPathTx).to.be.rejectedWith("DexDoesNotExist()");
+
+            // add dexes
+            const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
+            if (!balancerDex) throw new Error(`Could not find dex with name balancer`);
+            await utils.addNewDex(governance, registry, balancerDex);
+            expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(balancerDex.address);
+
+            // set path for existent dex, should pass
+            await registry.connect(governance).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
+            const path = await registry.getPath(testTokenPair.sellToken.address, testTokenPair.buyToken.address);
+            expect(path[0].paths).to.be.eql(testTokenPair.paths);
         });
         it("Should failed with addDex if the dex exist", async function () {
+            ////** Setup Accounts & Addresses *////
+            const { governance } = await loadFixture(setupAccounts);
+            // deploy contracts
+            const { registry, deployedDexes } = await utils.setupSystemBase(governance);
+
+            // add dexes
+            const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
+            if (!balancerDex) throw new Error(`Could not find dex with name balancer`);
+            await registry.connect(governance).addDex(ethers.utils.formatBytes32String(balancerDex.name), balancerDex.address);
+            expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(balancerDex.address);
+
+            // add the same dex again, should fail
+            const addDexTx = registry.connect(governance).addDex(ethers.utils.formatBytes32String(balancerDex.name), ethers.Wallet.createRandom().address);
+            await expect(addDexTx).to.be.rejectedWith("DexExists()");
         });
         it("Should failed with changeDexAddress if the dex doesn't exist", async function () {
+            ////** Setup Accounts & Addresses *////
+            const { governance } = await loadFixture(setupAccounts);
+            // deploy contracts
+            const { registry, deployedDexes } = await utils.setupSystemBase(governance);
+            // changeDexAddress when dex doesn't exist, should fail
+            const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
+            if (!balancerDex) throw new Error(`Could not find dex with name balancer`);
+            const changeDexAddressTx = registry.connect(governance).changeDexAddress(ethers.utils.formatBytes32String(balancerDex.name), ethers.Wallet.createRandom().address);
+            await expect(changeDexAddressTx).to.be.rejectedWith("DexDoesNotExist()");
+            // add dexes
+            await utils.addNewDex(governance, registry, balancerDex);
+            expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(balancerDex.address);
+            // changeDexAddress when dex exist, should pass
+            const randomAddr = ethers.Wallet.createRandom().address;
+            await registry.connect(governance).changeDexAddress(ethers.utils.formatBytes32String(balancerDex.name), randomAddr);
+            expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(randomAddr);
         });
     });
 });
