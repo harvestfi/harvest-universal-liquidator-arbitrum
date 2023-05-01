@@ -122,6 +122,24 @@ contract UniversalLiquidatorRegistry is
         return retDexes;
     }
 
+    function getAllIntermediateTokens()
+        public
+        view
+        override
+        returns (address[] memory)
+    {
+        address[] memory retTokens = new address[](intermediateTokens.length);
+
+        for (uint256 idx; idx < intermediateTokens.length; ) {
+            retTokens[idx] = intermediateTokens[idx];
+            unchecked {
+                ++idx;
+            }
+        }
+
+        return retTokens;
+    }
+
     function _dexExists(bytes32 _name) internal view returns (bool) {
         return dexesInfo[_name] != address(0);
     }

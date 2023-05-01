@@ -19,4 +19,9 @@ interface IUniversalLiquidatorRegistry {
     function changeDexAddress(bytes32 _name, address _address) external;
 
     function getAllDexes() external view returns (bytes32[] memory);
+
+    function getAllIntermediateTokens()
+        external
+        view
+        returns (address[] memory);
 }
