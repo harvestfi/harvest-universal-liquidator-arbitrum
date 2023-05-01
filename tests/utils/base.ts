@@ -33,7 +33,7 @@ export async function setupTokens(tokenPair: types.ITokenPair, faucet: SignerWit
         value: ethers.utils.parseEther("5") // 5 ether
     })
 
-    return { sellToken, buyToken, whale } as const;
+    return { sellToken, buyToken, whale };
 }
 
 export async function setupSystemBase(governance: SignerWithAddress) {
@@ -48,7 +48,7 @@ export async function setupSystemBase(governance: SignerWithAddress) {
 
     const deployedDexes = await deployDexes(governance);
 
-    return { registry, universalLiquidator, deployedDexes } as const;
+    return { registry, universalLiquidator, deployedDexes };
 }
 
 export async function setupDexes(governance: SignerWithAddress, registry: Contract, dexes: types.IDex[]) {
@@ -90,10 +90,6 @@ export async function setupPools(governance: SignerWithAddress, deployedDexes: t
             await addNewPoolId(governance, dexContract, poolId);
         });
     });
-}
-
-export async function setFee() {
-
 }
 
 async function deployDexes(governance: SignerWithAddress) {
