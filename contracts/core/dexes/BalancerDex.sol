@@ -28,7 +28,7 @@ contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
         address sellToken = _path[0];
         address buyToken = _path[_path.length - 1];
 
-        bytes32[] memory poolId = poolIds[sellToken][buyToken];
+        bytes32[] memory poolId = _poolIds[sellToken][buyToken];
 
         IBVault.BatchSwapStep[] memory swaps = new IBVault.BatchSwapStep[](
             _path.length - 1
@@ -85,15 +85,15 @@ contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
         address _token1,
         bytes32[] memory _poolId
     ) external onlyOwner {
-        poolIds[_token0][_token1] = _poolId;
-        poolIds[_token1][_token0] = _poolId;
+        _poolIds[_token0][_token1] = _poolId;
+        _poolIds[_token1][_token0] = _poolId;
     }
 
     function getPoolId(
         address _token0,
         address _token1
     ) public view returns (bytes32[] memory) {
-        return poolIds[_token0][_token1];
+        return _poolIds[_token0][_token1];
     }
 
     receive() external payable {}

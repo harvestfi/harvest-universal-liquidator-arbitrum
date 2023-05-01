@@ -32,22 +32,22 @@ contract UniversalLiquidatorRegistry is
             return retPaths;
         }
 
-        for (uint256 idx; idx < intermediateTokens.length; ) {
+        for (uint256 idx; idx < _intermediateTokens.length; ) {
             if (
-                paths[_sellToken][intermediateTokens[idx]].dex != bytes32(0) &&
-                paths[intermediateTokens[idx]][_buyToken].dex != bytes32(0)
+                paths[_sellToken][_intermediateTokens[idx]].dex != bytes32(0) &&
+                paths[_intermediateTokens[idx]][_buyToken].dex != bytes32(0)
             ) {
                 // found the intermediateToken and intermediateDex
                 DataTypes.SwapInfo[] memory retPaths = new DataTypes.SwapInfo[](
                     2
                 );
                 retPaths[0] = DataTypes.SwapInfo(
-                    dexesInfo[paths[_sellToken][intermediateTokens[idx]].dex],
-                    paths[_sellToken][intermediateTokens[idx]].paths
+                    dexesInfo[paths[_sellToken][_intermediateTokens[idx]].dex],
+                    paths[_sellToken][_intermediateTokens[idx]].paths
                 );
                 retPaths[1] = DataTypes.SwapInfo(
-                    dexesInfo[paths[intermediateTokens[idx]][_buyToken].dex],
-                    paths[intermediateTokens[idx]][_buyToken].paths
+                    dexesInfo[paths[_intermediateTokens[idx]][_buyToken].dex],
+                    paths[_intermediateTokens[idx]][_buyToken].paths
                 );
                 return retPaths;
             }
@@ -77,13 +77,13 @@ contract UniversalLiquidatorRegistry is
     function setIntermediateToken(
         address[] memory _token
     ) public override onlyOwner {
-        intermediateTokens = _token;
+        _intermediateTokens = _token;
     }
 
     function addDex(bytes32 _name, address _dex) public override onlyOwner {
         if (_dexExists(_name)) revert Errors.DexExists();
         dexesInfo[_name] = _dex;
-        allDexes.push(_name);
+        _allDexes.push(_name);
     }
 
     function changeDexAddress(
@@ -97,8 +97,8 @@ contract UniversalLiquidatorRegistry is
     function getAllDexes() public view override returns (bytes32[] memory) {
         uint256 totalDexes = 0;
 
-        for (uint256 idx = 0; idx < allDexes.length; ) {
-            if (dexesInfo[allDexes[idx]] != address(0)) {
+        for (uint256 idx = 0; idx < _allDexes.length; ) {
+            if (dexesInfo[_allDexes[idx]] != address(0)) {
                 totalDexes++;
             }
             unchecked {
@@ -109,9 +109,9 @@ contract UniversalLiquidatorRegistry is
         bytes32[] memory retDexes = new bytes32[](totalDexes);
         uint256 retIdx = 0;
 
-        for (uint256 idx; idx < allDexes.length; ) {
-            if (dexesInfo[allDexes[idx]] != address(0)) {
-                retDexes[retIdx] = allDexes[idx];
+        for (uint256 idx; idx < _allDexes.length; ) {
+            if (dexesInfo[_allDexes[idx]] != address(0)) {
+                retDexes[retIdx] = _allDexes[idx];
                 retIdx++;
             }
             unchecked {
@@ -128,16 +128,7 @@ contract UniversalLiquidatorRegistry is
         override
         returns (address[] memory)
     {
-        address[] memory retTokens = new address[](intermediateTokens.length);
-
-        for (uint256 idx; idx < intermediateTokens.length; ) {
-            retTokens[idx] = intermediateTokens[idx];
-            unchecked {
-                ++idx;
-            }
-        }
-
-        return retTokens;
+        return _intermediateTokens;
     }
 
     function _dexExists(bytes32 _name) internal view returns (bool) {

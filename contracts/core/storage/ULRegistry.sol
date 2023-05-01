@@ -7,6 +7,6 @@ abstract contract ULRegistryStorage {
     mapping(address => mapping(address => DataTypes.PathInfo)) public paths;
     mapping(bytes32 => address) public dexesInfo;
 
-    bytes32[] public allDexes;
-    address[] public intermediateTokens;
+    bytes32[] internal _allDexes;
+    address[] internal _intermediateTokens;
 }
