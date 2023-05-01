@@ -62,8 +62,6 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
     ) public view returns (uint24 fee) {
         if (_pairFee[_sellToken][_buyToken] != 0) {
             return _pairFee[_sellToken][_buyToken];
-        } else if (_pairFee[_buyToken][_sellToken] != 0) {
-            return _pairFee[_buyToken][_sellToken];
         } else {
             return 3000;
         }
@@ -75,6 +73,7 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
         uint24 _fee
     ) external onlyOwner {
         _pairFee[_token0][_token1] = _fee;
+        _pairFee[_token1][_token0] = _fee;
     }
 
     receive() external payable {}
