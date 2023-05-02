@@ -1,4 +1,5 @@
 import addresses from "../helpers/addresses.json";
+import poolIds from "../helpers/poolIds.json";
 import tokenPairs from "../helpers/token-pairs.json";
 
 import * as utils from "./utils";
@@ -38,8 +39,10 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const { testFarmer, governance, faucet } = await loadFixture(setupAccounts);
             // deploy contracts
             const { registry, universalLiquidator, deployedDexes } = await utils.setupSystemBase(governance);
+            // add fees
+            await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes);
+            await utils.setupPools(governance, deployedDexes, poolIds.test);
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
             const uniV3Dex = deployedDexes.find((dex) => dex?.name === "uniV3");
@@ -50,7 +53,9 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             await utils.setupDexes(governance, registry, deployedDexes);
 
             // set the path for BAL -> ARB, through BAL -> WETH -> ARB with Balancer
-            const testTokenPair = tokenPairs.test[0];
+            const testTokenCategory = tokenPairs.test.find((category) => category?.category === "registryMisc");
+            if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
+            const testTokenPair = testTokenCategory.tokenPairs[0];
             // setup tokens
             const { sellToken, buyToken, whale } = await utils.setupTokens(testTokenPair, faucet);
 
@@ -70,7 +75,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             expect(postSwapBalance).to.be.gt(0);
 
             // set the path for ARB -> BAL, through ARB -> WETH -> USDT -> BAL with UniswapV3
-            const mockTestTokenPair = tokenPairs.test[1];
+            const mockTestTokenPair = testTokenCategory.tokenPairs[1];
             await utils.setPath(governance, registry, mockTestTokenPair);
 
             const mockPath = await registry.getPath(testTokenPair.sellToken.address, testTokenPair.buyToken.address);
@@ -89,8 +94,10 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const { testFarmer, governance, faucet } = await loadFixture(setupAccounts);
             // deploy contracts
             const { registry, universalLiquidator, deployedDexes } = await utils.setupSystemBase(governance);
+            // add fees
+            await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes);
+            await utils.setupPools(governance, deployedDexes, poolIds.test);
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
             const uniV3Dex = deployedDexes.find((dex) => dex?.name === "uniV3");
@@ -102,8 +109,10 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
 
             // set the path for wstETH -> USDC, through wstETH -> USDC with Balancer
             // set the path for USDC -> ARB, through USDC -> ARB with UniswapV3
-            const testSwap1TokenPair = tokenPairs.test[4];
-            const testSwap2TokenPair = tokenPairs.test[5];
+            const testTokenCategory = tokenPairs.test.find((category) => category?.category === "registryMisc");
+            if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
+            const testSwap1TokenPair = testTokenCategory.tokenPairs[4];
+            const testSwap2TokenPair = testTokenCategory.tokenPairs[5];
             // setup tokens
             const { sellToken, whale } = await utils.setupTokens(testSwap1TokenPair, faucet);
             const { buyToken } = await utils.setupTokens(testSwap2TokenPair, faucet);
@@ -111,7 +120,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             await utils.setPath(governance, registry, testSwap1TokenPair);
             await utils.setPath(governance, registry, testSwap2TokenPair);
             // get the path for wstETH -> ARB
-            const targetTokenPair = tokenPairs.test[6];
+            const targetTokenPair = testTokenCategory.tokenPairs[6];
             const getPathRet = registry.getPath(targetTokenPair.sellToken.address, targetTokenPair.buyToken.address);
             await expect(getPathRet).to.be.rejectedWith("PathsNotExist()");
 
@@ -135,8 +144,8 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
 
             // set the path for wstETH -> WETH, through wstETH -> WETH with Balancer
             // set the path for WETH -> ARB, through WETH -> ARB with UniswapV3
-            const testSwap3TokenPair = tokenPairs.test[2];
-            const testSwap4TokenPair = tokenPairs.test[3];
+            const testSwap3TokenPair = testTokenCategory.tokenPairs[2];
+            const testSwap4TokenPair = testTokenCategory.tokenPairs[3];
             await utils.setPath(governance, registry, testSwap3TokenPair);
             await utils.setPath(governance, registry, testSwap4TokenPair);
             // get the path for wstETH -> ARB
@@ -157,8 +166,10 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const { governance } = await loadFixture(setupAccounts);
             // deploy contracts
             const { registry, deployedDexes } = await utils.setupSystemBase(governance);
+            // add fees
+            await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes);
+            await utils.setupPools(governance, deployedDexes, poolIds.test);
 
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
@@ -186,8 +197,10 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const { testFarmer, governance, faucet } = await loadFixture(setupAccounts);
             // deploy contracts
             const { registry, universalLiquidator, deployedDexes } = await utils.setupSystemBase(governance);
+            // add fees
+            await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes);
+            await utils.setupPools(governance, deployedDexes, poolIds.test);
 
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
@@ -199,7 +212,9 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const randomAddress = ethers.Wallet.createRandom().address;
             await utils.addNewDex(governance, registry, { name: balancerDex.name, address: randomAddress });
             // set the path for BAL -> ARB, through BAL -> WETH -> ARB with Balancer
-            const testTokenPair = tokenPairs.test[0];
+            const testTokenCategory = tokenPairs.test.find((category) => category?.category === "registryMisc");
+            if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
+            const testTokenPair = testTokenCategory.tokenPairs[0];
             // setup tokens
             const { sellToken, buyToken, whale } = await utils.setupTokens(testTokenPair, faucet);
 
@@ -234,7 +249,9 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             if (!balancerDex) throw new Error(`Could not find dex with name balancer`);
             await utils.addNewDex(governance, registry, balancerDex);
 
-            const testTokenPair = tokenPairs.test[0];
+            const testTokenCategory = tokenPairs.test.find((category) => category?.category === "registryMisc");
+            if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
+            const testTokenPair = testTokenCategory.tokenPairs[0];
             const setPathTx = registry.connect(testFarmer).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
             await expect(setPathTx).to.be.rejectedWith("Ownable: caller is not the owner");
             await registry.connect(governance).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
@@ -293,7 +310,9 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const { registry, deployedDexes } = await utils.setupSystemBase(governance);
 
             // set path for non existent dex, should fail
-            const testTokenPair = tokenPairs.test[0];
+            const testTokenCategory = tokenPairs.test.find((category) => category?.category === "registryMisc");
+            if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
+            const testTokenPair = testTokenCategory.tokenPairs[0];
             const setPathTx = registry.connect(governance).setPath(ethers.utils.formatBytes32String(testTokenPair.dex), testTokenPair.paths);
             await expect(setPathTx).to.be.rejectedWith("DexDoesNotExist()");
 
