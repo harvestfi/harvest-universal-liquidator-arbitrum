@@ -1,6 +1,5 @@
 import dexes from "../../helpers/dexes.json";
-import poolIds from "../../helpers/poolIds.json";
-import tokenPairs from "../../helpers/token-pairs.json";
+import feesPair from "../../helpers/fees.json";
 import intermediateTokens from "../../helpers/intermediate-tokens.json";
 
 import * as utils from "./hh-utils";
@@ -58,7 +57,7 @@ export async function setupDexes(governance: SignerWithAddress, registry: Contra
 }
 
 export async function setupIntermediateTokens(governance: SignerWithAddress, registry: Contract) {
-    const intermediateTokensList = intermediateTokens.list.map((token) => {
+    const intermediateTokensList = intermediateTokens.test.map((token) => {
         return token.address;
     });
     await registry.connect(governance).setIntermediateToken(intermediateTokensList);
@@ -67,16 +66,9 @@ export async function setupIntermediateTokens(governance: SignerWithAddress, reg
     });
 }
 
-export async function setupPaths(governance: SignerWithAddress, registry: Contract,) {
-    const tokenPairList = tokenPairs.list;
-    for (const tokenPair of tokenPairList) {
-        await setPath(governance, registry, tokenPair);
-    }
-}
-
-export async function setupPools(governance: SignerWithAddress, deployedDexes: types.IDex[]) {
-    poolIds.list.forEach(async (poolIds) => {
-        const dexName = poolIds.name;
+export async function setupFees(governance: SignerWithAddress, deployedDexes: types.IDex[]) {
+    feesPair.list.forEach(async (dex) => {
+        const dexName = dex.name;
         const deployedDex = deployedDexes.find((dex) => dex?.name === dexName);
         const dexFile = dexes.list.find((dex) => dex?.name === dexName);
         if (!deployedDex) {
@@ -86,7 +78,31 @@ export async function setupPools(governance: SignerWithAddress, deployedDexes: t
             throw new Error(`Could not find contract file with name ${dexName}`);
         }
         const dexContract = await ethers.getContractAt(dexFile.file, deployedDex.address);
-        poolIds.pools.forEach(async (poolId) => {
+        dex.pools.forEach(async (feePair) => {
+            await setFee(governance, dexContract, feePair);
+        });
+    });
+}
+
+export async function setupPaths(governance: SignerWithAddress, registry: Contract, tokenPairList: types.ITokenPair[]) {
+    for (const tokenPair of tokenPairList) {
+        await setPath(governance, registry, tokenPair);
+    }
+}
+
+export async function setupPools(governance: SignerWithAddress, deployedDexes: types.IDex[], poolIdsList: types.IPoolList[]) {
+    poolIdsList.forEach(async (dex) => {
+        const dexName = dex.name;
+        const deployedDex = deployedDexes.find((dex) => dex?.name === dexName);
+        const dexFile = dexes.list.find((dex) => dex?.name === dexName);
+        if (!deployedDex) {
+            throw new Error(`Could not find dex with name ${dexName}`);
+        }
+        if (!dexFile) {
+            throw new Error(`Could not find contract file with name ${dexName}`);
+        }
+        const dexContract = await ethers.getContractAt(dexFile.file, deployedDex.address);
+        dex.pools.forEach(async (poolId) => {
             await addNewPoolId(governance, dexContract, poolId);
         });
     });
@@ -110,6 +126,15 @@ export async function addNewDex(governance: SignerWithAddress, registry: Contrac
     const hexName = ethers.utils.formatBytes32String(dex.name);
     await registry.connect(governance).addDex(hexName, dex.address);
     expect(await registry.dexesInfo(hexName)).to.equal(dex.address);
+}
+
+export async function setFee(governance: SignerWithAddress, dex: Contract, feeInfo: types.IFeePair) {
+    const token1 = feeInfo.sellToken.address;
+    const token2 = feeInfo.buyToken.address;
+    const fee = feeInfo.fee;
+    await dex.connect(governance).setPoolId(token1, token2, fee);
+    expect(await dex.pairFee(token1, token2)).to.equal(fee);
+    expect(await dex.pairFee(token2, token1)).to.equal(fee);
 }
 
 export async function setPath(governance: SignerWithAddress, registry: Contract, pairInfo: types.ITokenPair) {
