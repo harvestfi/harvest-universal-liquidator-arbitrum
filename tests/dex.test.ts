@@ -1,4 +1,3 @@
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import addresses from "../helpers/addresses.json";
 import fees from "../helpers/fees.json";
 import poolIds from "../helpers/poolIds.json";
@@ -7,6 +6,7 @@ import * as utils from "./utils";
 
 import { ethers } from "hardhat";
 import { expect } from "chai";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("Dexes: Functionality Tests", function () {
     async function setupAccounts() {
@@ -60,7 +60,7 @@ describe("Dexes: Functionality Tests", function () {
             const balancerDex = await BalancerDex.deploy();
             await balancerDex.deployed();
 
-            const testPoolList = poolIds.list.find(dex => dex.name === "balancer");
+            const testPoolList = poolIds.test.find(dex => dex.name === "balancer");
             const testPoolPair = testPoolList?.pools[0];
             if (!testPoolPair) throw new Error(`Could not find the pools`);
             const testSellToken = testPoolPair.sellToken.address;
