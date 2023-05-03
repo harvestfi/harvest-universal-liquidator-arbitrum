@@ -135,7 +135,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
       });
       it(`minBuyAmount enforced: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
         // set the sellAmount to 1 and set the limit super high
-        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, poolIds.test, BigNumber.from(1), BigNumber.from(2).pow(256).sub(1));
+        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, poolIds.test, BigNumber.from(1), ethers.constants.MaxInt256);
         // execute swap
         await sellToken.connect(testFarmer).approve(universalLiquidator.address, sellAmount);
         const swapTxRes = universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);
@@ -159,11 +159,11 @@ describe("Universal Liquidator: Swapping Tests", function () {
       });
       it(`minBuyAmount enforced: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
         // set the sellAmount to 1 and set the limit super high
-        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, poolIds.test, BigNumber.from(1), BigNumber.from(2).pow(256).sub(1));
+        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, poolIds.test, BigNumber.from(1), ethers.constants.MaxInt256);
         // execute swap
         await sellToken.connect(testFarmer).approve(universalLiquidator.address, sellAmount);
-        const swapTxRes = await universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);
-        //await expect(swapTxRes).to.be.reverted;
+        const swapTxRes = universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);
+        await expect(swapTxRes).to.be.reverted;
 
         expect(await sellToken.balanceOf(testFarmer.address)).to.equal(sellAmount);
         expect(await sellToken.balanceOf(universalLiquidator.address)).to.equal(0);
