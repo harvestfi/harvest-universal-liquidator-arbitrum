@@ -12,9 +12,9 @@ import "../../interface/uniswap/v2/IUniswapV2Router02.sol";
 import "../../interface/uniswap/v2/IUniswapV2Factory.sol";
 
 // constants and types
-import {UniBasedDexStorage} from "../storage/UniBasedDex.sol";
+import {BaseDexStorage} from "../storage/BaseDex.sol";
 
-contract UniBasedDex is Ownable, ILiquidityDex, UniBasedDexStorage {
+contract UniBasedDex is Ownable, ILiquidityDex, BaseDexStorage {
     using SafeERC20 for IERC20;
 
     constructor(address _router) {

@@ -11,9 +11,9 @@ import "../../interface/ILiquidityDex.sol";
 import "../../interface/camelot/ICamelotRouter.sol";
 
 // constants and types
-import {CamelotDexStorage} from "../storage/CamelotDex.sol";
+import {BaseDexStorage} from "../storage/BaseDex.sol";
 
-contract CamelotDex is Ownable, ILiquidityDex, CamelotDexStorage {
+contract CamelotDex is Ownable, ILiquidityDex, BaseDexStorage {
     using SafeERC20 for IERC20;
 
     constructor(address _router) {

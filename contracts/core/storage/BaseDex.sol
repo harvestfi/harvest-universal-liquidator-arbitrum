@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-abstract contract CamelotDexStorage {
+abstract contract BaseDexStorage {
     address public router;
 }
