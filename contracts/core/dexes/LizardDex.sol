@@ -16,8 +16,6 @@ import "../../libraries/Addresses.sol";
 // constants and types
 import {LizardDexStorage} from "../storage/LizardDex.sol";
 
-import "hardhat/console.sol";
-
 contract LizardDex is Ownable, ILiquidityDex, LizardDexStorage {
     using SafeERC20 for IERC20;
 
