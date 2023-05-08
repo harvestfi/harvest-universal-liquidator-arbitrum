@@ -89,6 +89,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const mockPostSwapBalance = await buyToken.balanceOf(testFarmer.address);
             expect(mockPostSwapBalance).to.be.gt(postSwapBalance);
         });
+
         it("Set IntermediateToken", async function () {
             ////** Setup Accounts & Addresses *////
             const { testFarmer, governance, faucet } = await loadFixture(setupAccounts);
@@ -161,6 +162,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const balanceAfterSwapWithWETH = await buyToken.balanceOf(testFarmer.address);
             expect(balanceAfterSwapWithWETH).to.be.gt(balanceAfterSwapWithUSDT);
         });
+
         it("Adding new dex", async function () {
             ////** Setup Accounts & Addresses *////
             const { governance } = await loadFixture(setupAccounts);
@@ -192,6 +194,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
                 expect(addedDex).to.include(dex);
             });
         });
+
         it("Changing dex address", async function () {
             ////** Setup Accounts & Addresses *////
             const { testFarmer, governance, faucet } = await loadFixture(setupAccounts);
@@ -258,6 +261,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const path = await registry.getPath(testTokenPair.sellToken.address, testTokenPair.buyToken.address);
             expect(path[0].paths).to.be.eql(testTokenPair.paths);
         });
+
         it("Only owner can setIntermediateToken", async function () {
             ////** Setup Accounts & Addresses *////
             const { testFarmer, governance } = await loadFixture(setupAccounts);
@@ -269,6 +273,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             await registry.connect(governance).setIntermediateToken([]);
             expect(await registry.getAllIntermediateTokens()).to.be.eql([]);
         });
+
         it("Only owner can addDex", async function () {
             ////** Setup Accounts & Addresses *////
             const { testFarmer, governance } = await loadFixture(setupAccounts);
@@ -284,6 +289,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             await registry.connect(governance).addDex(ethers.utils.formatBytes32String(balancerDex.name), balancerDex.address);
             expect(await registry.dexesInfo(ethers.utils.formatBytes32String(balancerDex.name))).to.be.equal(balancerDex.address);
         });
+
         it("Only owner can changeDexAddress", async function () {
             ////** Setup Accounts & Addresses *////
             const { testFarmer, governance } = await loadFixture(setupAccounts);
@@ -327,6 +333,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const path = await registry.getPath(testTokenPair.sellToken.address, testTokenPair.buyToken.address);
             expect(path[0].paths).to.be.eql(testTokenPair.paths);
         });
+
         it("Should failed with addDex if the dex exist", async function () {
             ////** Setup Accounts & Addresses *////
             const { governance } = await loadFixture(setupAccounts);
@@ -343,6 +350,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             const addDexTx = registry.connect(governance).addDex(ethers.utils.formatBytes32String(balancerDex.name), ethers.Wallet.createRandom().address);
             await expect(addDexTx).to.be.rejectedWith("DexExists()");
         });
+
         it("Should failed with changeDexAddress if the dex doesn't exist", async function () {
             ////** Setup Accounts & Addresses *////
             const { governance } = await loadFixture(setupAccounts);

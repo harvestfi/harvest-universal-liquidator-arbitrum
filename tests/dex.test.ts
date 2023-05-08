@@ -37,6 +37,7 @@ describe("Dexes: Functionality Tests", function () {
             const testFee = testFeePair.fee;
             return { governance, uniswapDex, testSellToken, testBuyToken, testFee };
         }
+
         describe("Happy Path", function () {
             it("Set fee", async function () {
                 const { governance, uniswapDex, testSellToken, testBuyToken, testFee } = await loadFixture(setupDex);
@@ -45,6 +46,7 @@ describe("Dexes: Functionality Tests", function () {
                 expect(await uniswapDex.pairFee(testSellToken, testBuyToken)).to.equal(500);
             });
         });
+
         describe("Ownership", function () {
             it("Only owner can set fee", async function () {
                 const { uniswapDex, testSellToken, testBuyToken, testFee } = await loadFixture(setupDex);
@@ -68,6 +70,7 @@ describe("Dexes: Functionality Tests", function () {
             const testPoolIds = testPoolPair.poolIds;
             return { governance, balancerDex, testSellToken, testBuyToken, testPoolIds };
         }
+
         describe("Happy Path", function () {
             it("Set poolId", async function () {
                 const { governance, balancerDex, testSellToken, testBuyToken, testPoolIds } = await loadFixture(setupDex);
@@ -75,6 +78,7 @@ describe("Dexes: Functionality Tests", function () {
                 expect(await balancerDex.getPoolId(testBuyToken, testSellToken)).to.eql(testPoolIds);
             });
         });
+
         describe("Ownership", function () {
             it("Only owner can set poolId", async function () {
                 const { balancerDex, testSellToken, testBuyToken, testPoolIds } = await loadFixture(setupDex);

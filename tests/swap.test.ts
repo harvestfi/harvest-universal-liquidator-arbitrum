@@ -126,6 +126,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
       });
     }
   });
+
   describe("Go Through the Test Token Pair List with Single Swap", function () {
     const testTokenCategory = tokenPairs.test.find((category) => category?.category === "singleSwap");
     if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
@@ -150,6 +151,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
       });
     }
   });
+
   describe("Go Through the Test Token Pair List with Multihop Swap", function () {
     const testTokenCategory = tokenPairs.test.find((category) => category?.category === "multiSwap");
     if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
