@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+// imported contracts and libraries
 import "./UniBasedDex.sol";
 
-contract SushiswapDex is
-    UniBasedDex(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506)
-{}
+// libraries
+import "../../libraries/Addresses.sol";
+
+contract SushiswapDex is UniBasedDex(Addresses.sushiSwapRouter) {}

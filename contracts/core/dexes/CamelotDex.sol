@@ -10,15 +10,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interface/ILiquidityDex.sol";
 import "../../interface/camelot/ICamelotRouter.sol";
 
-// constants and types
-import {BaseDexStorage} from "../storage/BaseDex.sol";
+// libraries
+import "../../libraries/Addresses.sol";
 
-contract CamelotDex is Ownable, ILiquidityDex, BaseDexStorage {
+contract CamelotDex is Ownable, ILiquidityDex {
     using SafeERC20 for IERC20;
-
-    constructor(address _router) {
-        router = _router;
-    }
 
     function doSwap(
         uint256 _sellAmount,
@@ -28,9 +24,12 @@ contract CamelotDex is Ownable, ILiquidityDex, BaseDexStorage {
     ) public override returns (uint256) {
         address sellToken = _path[0];
 
-        IERC20(sellToken).safeIncreaseAllowance(router, _sellAmount);
+        IERC20(sellToken).safeIncreaseAllowance(
+            Addresses.camelotRouter,
+            _sellAmount
+        );
 
-        ICamelotRouter(router)
+        ICamelotRouter(Addresses.camelotRouter)
             .swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 _sellAmount,
                 _minBuyAmount,
