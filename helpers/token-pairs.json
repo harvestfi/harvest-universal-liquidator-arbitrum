@@ -109,6 +109,40 @@
                         "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
                     ],
                     "dex": "sushi"
+                },
+                {
+                    "sellToken": {
+                        "name": "GRAIL",
+                        "address": "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "whale": "0x75691b20d872be09243a6cc24fe815d10f089847"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "paths": [
+                        "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    ],
+                    "dex": "camelot"
+                },
+                {
+                    "sellToken": {
+                        "name": "SLIZ",
+                        "address": "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
+                        "whale": "0x00680642adb56ea659d96a91e81099c43886f513"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "paths": [
+                        "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    ],
+                    "dex": "lizard"
                 }
             ]
         },
@@ -168,6 +202,44 @@
                         "0x912CE59144191C1204E64559FE8253a0e49E6548"
                     ],
                     "dex": "sushi"
+                },
+                {
+                    "sellToken": {
+                        "name": "GRAIL",
+                        "address": "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "whale": "0x75691b20d872be09243a6cc24fe815d10f089847"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "camelot"
+                },
+                {
+                    "sellToken": {
+                        "name": "SLIZ",
+                        "address": "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
+                        "whale": "0x00680642adb56ea659d96a91e81099c43886f513"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
+                        "0x1A5B0aaF478bf1FDA7b934c76E7692D722982a6D",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "lizard"
                 }
             ]
         },
