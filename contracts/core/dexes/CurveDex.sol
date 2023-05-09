@@ -62,10 +62,10 @@ contract CurveDex is Ownable, ILiquidityDex, CurveDexStorage {
     }
 
     function setPool(
-        address _poolAddr,
         address _token0,
-        address _token1
-    ) public onlyOwner {
+        address _token1,
+        address _poolAddr
+    ) external onlyOwner {
         _pool[_token0][_token1] = _poolAddr;
         _pool[_token1][_token0] = _poolAddr;
     }

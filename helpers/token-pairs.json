@@ -143,6 +143,23 @@
                         "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
                     ],
                     "dex": "lizard"
+                },
+                {
+                    "sellToken": {
+                        "name": "USDT",
+                        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "whale": "0xf89d7b9c864f589bbf53a82105107622b35eaa40"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "whale": "0x62383739d68dd0f844103db8dfb05a7eded5bbe6"
+                    },
+                    "paths": [
+                        "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    ],
+                    "dex": "curve"
                 }
             ]
         },
@@ -240,6 +257,24 @@
                         "0x912CE59144191C1204E64559FE8253a0e49E6548"
                     ],
                     "dex": "lizard"
+                },
+                {
+                    "sellToken": {
+                        "name": "USDT",
+                        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "whale": "0xf89d7b9c864f589bbf53a82105107622b35eaa40"
+                    },
+                    "buyToken": {
+                        "name": "FRAX",
+                        "address": "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+                        "whale": "0xb50421ddf9241c8998bf1e68cf6c479dadce8aa3"
+                    },
+                    "paths": [
+                        "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F"
+                    ],
+                    "dex": "curve"
                 }
             ]
         },

@@ -90,8 +90,8 @@ export async function setupPaths(governance: SignerWithAddress, registry: Contra
     }
 }
 
-export async function setupPools(governance: SignerWithAddress, deployedDexes: types.IDex[], poolIdsList: types.IPoolList[]) {
-    poolIdsList.forEach(async (dex) => {
+export async function setupPools(governance: SignerWithAddress, deployedDexes: types.IDex[], poolsList: types.IPoolList[]) {
+    poolsList.forEach(async (dex) => {
         const dexName = dex.name;
         const deployedDex = deployedDexes.find((dex) => dex?.name === dexName);
         const dexFile = dexes.list.find((dex) => dex?.name === dexName);
@@ -102,8 +102,8 @@ export async function setupPools(governance: SignerWithAddress, deployedDexes: t
             throw new Error(`Could not find contract file with name ${dexName}`);
         }
         const dexContract = await ethers.getContractAt(dexFile.file, deployedDex.address);
-        dex.pools.forEach(async (poolId) => {
-            await addNewPoolId(governance, dexContract, poolId);
+        dex.pools.forEach(async (pool) => {
+            await addNewPool(governance, dexContract, pool, dexName);
         });
     });
 }
@@ -132,7 +132,7 @@ export async function setFee(governance: SignerWithAddress, dex: Contract, feeIn
     const token1 = feeInfo.sellToken.address;
     const token2 = feeInfo.buyToken.address;
     const fee = feeInfo.fee;
-    await dex.connect(governance).setPoolId(token1, token2, fee);
+    await dex.connect(governance).setFee(token1, token2, fee);
     expect(await dex.pairFee(token1, token2)).to.equal(fee);
     expect(await dex.pairFee(token2, token1)).to.equal(fee);
 }
@@ -146,14 +146,25 @@ export async function setPath(governance: SignerWithAddress, registry: Contract,
     });
 }
 
-export async function addNewPoolId(governance: SignerWithAddress, dex: Contract, poolInfo: types.IPool) {
-    const path = poolInfo.poolIds;
-    const sellToken = poolInfo.sellToken.address;
-    const buyToken = poolInfo.buyToken.address;
+export async function addNewPool(governance: SignerWithAddress, dex: Contract, poolInfo: types.IPool, type: string) {
+    if (type === "balancer") {
+        const path = poolInfo.pools;
+        const sellToken = poolInfo.sellToken.address;
+        const buyToken = poolInfo.buyToken.address;
+        await dex.connect(governance).setPool(sellToken, buyToken, path);
+        const resultPath = await dex.getPool(sellToken, buyToken);
+        path.forEach(async (poolId, index) => {
+            expect(resultPath[index]).to.equal(poolId);
+        });
+    } else if (type === "curve") {
+        const path = poolInfo.pools;
+        const sellToken = poolInfo.sellToken.address;
+        const buyToken = poolInfo.buyToken.address;
+        await dex.connect(governance).setPool(sellToken, buyToken, path[0]);
+        const resultPath = await dex.getPool(sellToken, buyToken);
+        path.forEach(async (poolId, index) => {
+            expect(resultPath[index]).to.equal(poolId);
+        });
+    }
 
-    await dex.connect(governance).setPoolId(sellToken, buyToken, path);
-    const resultPath = await dex.getPoolId(sellToken, buyToken);
-    path.forEach(async (poolId, index) => {
-        expect(resultPath[index]).to.equal(poolId);
-    });
 }
