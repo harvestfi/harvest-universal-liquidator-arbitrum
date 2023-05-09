@@ -80,7 +80,7 @@ contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
             );
     }
 
-    function setPoolId(
+    function setPool(
         address _token0,
         address _token1,
         bytes32[] memory _poolId
@@ -89,7 +89,7 @@ contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
         _poolIds[_token1][_token0] = _poolId;
     }
 
-    function getPoolId(
+    function getPool(
         address _token0,
         address _token1
     ) public view returns (bytes32[] memory) {

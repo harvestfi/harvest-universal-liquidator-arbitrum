@@ -1,5 +1,5 @@
 import addresses from "../helpers/addresses.json";
-import poolIds from "../helpers/poolIds.json";
+import pools from "../helpers/pools.json";
 import tokenPairs from "../helpers/token-pairs.json";
 
 import * as utils from "./utils";
@@ -42,7 +42,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             // add fees
             await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes, poolIds.test);
+            await utils.setupPools(governance, deployedDexes, pools.test);
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
             const uniV3Dex = deployedDexes.find((dex) => dex?.name === "uniV3");
@@ -98,7 +98,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             // add fees
             await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes, poolIds.test);
+            await utils.setupPools(governance, deployedDexes, pools.test);
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
             const uniV3Dex = deployedDexes.find((dex) => dex?.name === "uniV3");
@@ -171,7 +171,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             // add fees
             await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes, poolIds.test);
+            await utils.setupPools(governance, deployedDexes, pools.test);
 
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");
@@ -203,7 +203,7 @@ describe("Universal Liquidator Registry: Functionality Tests", function () {
             // add fees
             await utils.setupFees(governance, deployedDexes);
             // add pools
-            await utils.setupPools(governance, deployedDexes, poolIds.test);
+            await utils.setupPools(governance, deployedDexes, pools.test);
 
             // add dexes
             const balancerDex = deployedDexes.find((dex) => dex?.name === "balancer");

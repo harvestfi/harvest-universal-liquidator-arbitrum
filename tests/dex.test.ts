@@ -1,6 +1,6 @@
 import addresses from "../helpers/addresses.json";
 import fees from "../helpers/fees.json";
-import poolIds from "../helpers/poolIds.json";
+import pools from "../helpers/pools.json";
 
 import * as utils from "./utils";
 
@@ -62,28 +62,28 @@ describe("Dexes: Functionality Tests", function () {
             const balancerDex = await BalancerDex.deploy();
             await balancerDex.deployed();
 
-            const testPoolList = poolIds.test.find(dex => dex.name === "balancer");
+            const testPoolList = pools.test.find(dex => dex.name === "balancer");
             const testPoolPair = testPoolList?.pools[0];
             if (!testPoolPair) throw new Error(`Could not find the pools`);
             const testSellToken = testPoolPair.sellToken.address;
             const testBuyToken = testPoolPair.buyToken.address;
-            const testPoolIds = testPoolPair.poolIds;
-            return { governance, balancerDex, testSellToken, testBuyToken, testPoolIds };
+            const testPools = testPoolPair.pools;
+            return { governance, balancerDex, testSellToken, testBuyToken, testPools };
         }
 
         describe("Happy Path", function () {
             it("Set poolId", async function () {
-                const { governance, balancerDex, testSellToken, testBuyToken, testPoolIds } = await loadFixture(setupDex);
-                await balancerDex.connect(governance).setPoolId(testSellToken, testBuyToken, testPoolIds);
-                expect(await balancerDex.getPoolId(testBuyToken, testSellToken)).to.eql(testPoolIds);
+                const { governance, balancerDex, testSellToken, testBuyToken, testPools } = await loadFixture(setupDex);
+                await balancerDex.connect(governance).setPool(testSellToken, testBuyToken, testPools);
+                expect(await balancerDex.getPool(testBuyToken, testSellToken)).to.eql(testPools);
             });
         });
 
         describe("Ownership", function () {
             it("Only owner can set poolId", async function () {
-                const { balancerDex, testSellToken, testBuyToken, testPoolIds } = await loadFixture(setupDex);
-                const testSetPoolIdTx = balancerDex.setPoolId(testSellToken, testBuyToken, testPoolIds);
-                expect(testSetPoolIdTx).to.be.revertedWith("Ownable: caller is not the owner");
+                const { balancerDex, testSellToken, testBuyToken, testPools } = await loadFixture(setupDex);
+                const testSetPoolTx = balancerDex.setPool(testSellToken, testBuyToken, testPools);
+                expect(testSetPoolTx).to.be.revertedWith("Ownable: caller is not the owner");
             });
         });
     });

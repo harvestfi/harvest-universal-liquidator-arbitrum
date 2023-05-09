@@ -1,6 +1,6 @@
 // Utilities
 import addresses from "../helpers/addresses.json";
-import poolIds from "../helpers/poolIds.json";
+import pools from "../helpers/pools.json";
 import tokenPairs from "../helpers/token-pairs.json";
 
 import * as utils from "./utils";
@@ -54,7 +54,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
 
     // if no sellAmount or minBuyAmount is provided, set the values
     if (!sellAmount || !minBuyAmount) {
-      sellAmount = (await sellToken.balanceOf(whale.address)).div(50);
+      sellAmount = (await sellToken.balanceOf(whale.address)).div(60);
       minBuyAmount = BigNumber.from(1);
     }
 
@@ -92,7 +92,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
     const list = tokenPairs.list;
     for (const tokenPair of list) {
       it(`Happy Path: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
-        await happyPathTest(tokenPair, tokenPairs.list, poolIds.list);
+        await happyPathTest(tokenPair, tokenPairs.list, pools.list);
       });
 
       it(`Didn't Set Paths: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
@@ -112,7 +112,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
       });
 
       it(`Didn't Approve Dexes: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
-        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, tokenPairs.list, poolIds.list);
+        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, tokenPairs.list, pools.list);
 
         const swapTxRes = universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);
         await expect(swapTxRes).to.be.reverted;
@@ -132,11 +132,11 @@ describe("Universal Liquidator: Swapping Tests", function () {
     if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
     for (const tokenPair of testTokenCategory.tokenPairs) {
       it(`Happy Path: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
-        await happyPathTest(tokenPair, testTokenCategory.tokenPairs, poolIds.test);
+        await happyPathTest(tokenPair, testTokenCategory.tokenPairs, pools.test);
       });
       it(`minBuyAmount enforced: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
         // set the sellAmount to 1 and set the limit super high
-        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, poolIds.test, BigNumber.from(1), ethers.constants.MaxInt256);
+        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, pools.test, BigNumber.from(1), ethers.constants.MaxInt256);
         // execute swap
         await sellToken.connect(testFarmer).approve(universalLiquidator.address, sellAmount);
         const swapTxRes = universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);
@@ -157,11 +157,11 @@ describe("Universal Liquidator: Swapping Tests", function () {
     if (!testTokenCategory) throw new Error(`Could not find category with name registryMisc`);
     for (const tokenPair of testTokenCategory.tokenPairs) {
       it(`Happy Path: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
-        await happyPathTest(tokenPair, testTokenCategory.tokenPairs, poolIds.test);
+        await happyPathTest(tokenPair, testTokenCategory.tokenPairs, pools.test);
       });
       it(`minBuyAmount enforced: ${tokenPair.sellToken.name} to ${tokenPair.buyToken.name}`, async function () {
         // set the sellAmount to 1 and set the limit super high
-        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, poolIds.test, BigNumber.from(1), ethers.constants.MaxInt256);
+        const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, testTokenCategory.tokenPairs, pools.test, BigNumber.from(1), ethers.constants.MaxInt256);
         // execute swap
         await sellToken.connect(testFarmer).approve(universalLiquidator.address, sellAmount);
         const swapTxRes = universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);

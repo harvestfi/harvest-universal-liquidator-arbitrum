@@ -12,7 +12,7 @@
                         "name": "ARB",
                         "address": "0x912CE59144191C1204E64559FE8253a0e49E6548"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0xcc65a812ce382ab909a11e434dbf75b34f1cc59d000200000000000000000001",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
                     ]
@@ -26,7 +26,7 @@
                         "name": "WETH",
                         "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316"
                     ]
                 },
@@ -39,7 +39,7 @@
                         "name": "USDC",
                         "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0x178e029173417b1f9c8bc16dcec6f697bc323746000200000000000000000158"
                     ]
                 },
@@ -52,7 +52,7 @@
                         "name": "ARB",
                         "address": "0x912CE59144191C1204E64559FE8253a0e49E6548"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
                     ]
@@ -73,7 +73,7 @@
                         "name": "ARB",
                         "address": "0x912CE59144191C1204E64559FE8253a0e49E6548"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0xcc65a812ce382ab909a11e434dbf75b34f1cc59d000200000000000000000001",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
                     ]
@@ -87,7 +87,7 @@
                         "name": "WETH",
                         "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316"
                     ]
                 },
@@ -100,7 +100,7 @@
                         "name": "USDC",
                         "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0x178e029173417b1f9c8bc16dcec6f697bc323746000200000000000000000158"
                     ]
                 },
@@ -113,9 +113,40 @@
                         "name": "ARB",
                         "address": "0x912CE59144191C1204E64559FE8253a0e49E6548"
                     },
-                    "poolIds": [
+                    "pools": [
                         "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "curve",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "USDT",
+                        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    },
+                    "pools": [
+                        "0x7f90122BF0700F9E7e1F688fe926940E8839F353"
+                    ]
+                },
+                {
+                    "sellToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    },
+                    "buyToken": {
+                        "name": "FRAX",
+                        "address": "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F"
+                    },
+                    "pools": [
+                        "0xC9B8a3FDECB9D5b218d02555a8Baf332E5B740d5"
                     ]
                 }
             ]
