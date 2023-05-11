@@ -10,10 +10,10 @@ import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-export async function setupTokens(tokenPair: types.ITokenPair, faucet: SignerWithAddress) {
+export async function setupTokens(token0Addr: string, token1Addr: string, token0Whale: string | undefined, faucet: SignerWithAddress) {
     // create instances
-    const sellToken = await ethers.getContractAt("IERC20", tokenPair.sellToken.address);
-    const buyToken = await ethers.getContractAt("IERC20", tokenPair.buyToken.address);
+    const sellToken = await ethers.getContractAt("IERC20", token0Addr);
+    const buyToken = await ethers.getContractAt("IERC20", token1Addr);
 
     // check if pairInfo has whale
     const whale = await async function (address: string | undefined) {
@@ -22,7 +22,7 @@ export async function setupTokens(tokenPair: types.ITokenPair, faucet: SignerWit
         } else {
             throw new Error("No whale address");
         }
-    }(tokenPair.sellToken.whale);
+    }(token0Whale);
 
     await utils.impersonates([whale.address]);
 
@@ -56,12 +56,15 @@ export async function setupDexes(governance: SignerWithAddress, registry: Contra
     });
 }
 
-export async function setupIntermediateTokens(governance: SignerWithAddress, registry: Contract) {
-    const intermediateTokensList = intermediateTokens.test.map((token) => {
-        return token.address;
-    });
+export async function setupIntermediateTokens(governance: SignerWithAddress, registry: Contract, intermediateTokensList?: string[]) {
+    if (intermediateTokensList === undefined) {
+        intermediateTokensList = intermediateTokens.test.map((token) => {
+            return token.address;
+        });
+    }
+
     await registry.connect(governance).setIntermediateToken(intermediateTokensList);
-    intermediateTokensList.forEach(async (token, index) => {
+    intermediateTokensList?.forEach(async (token, index) => {
         expect(await registry.intermediateTokens(index)).to.equal(token);
     });
 }
@@ -86,7 +89,7 @@ export async function setupFees(governance: SignerWithAddress, deployedDexes: ty
 
 export async function setupPaths(governance: SignerWithAddress, registry: Contract, tokenPairList: types.ITokenPair[]) {
     for (const tokenPair of tokenPairList) {
-        await setPath(governance, registry, tokenPair);
+        await setPath(governance, registry, tokenPair.dex, tokenPair.paths);
     }
 }
 
@@ -137,9 +140,8 @@ export async function setFee(governance: SignerWithAddress, dex: Contract, feeIn
     expect(await dex.pairFee(token2, token1)).to.equal(fee);
 }
 
-export async function setPath(governance: SignerWithAddress, registry: Contract, pairInfo: types.ITokenPair) {
-    const path = pairInfo.paths;
-    await registry.connect(governance).setPath(ethers.utils.formatBytes32String(pairInfo.dex), path);
+export async function setPath(governance: SignerWithAddress, registry: Contract, dex: string, path: string[]) {
+    await registry.connect(governance).setPath(ethers.utils.formatBytes32String(dex), path);
     const resultPath = await registry.getPath(path[0], path[path.length - 1]);
     path.forEach(async (token, index) => {
         expect(resultPath[0].paths[index]).to.equal(token);
