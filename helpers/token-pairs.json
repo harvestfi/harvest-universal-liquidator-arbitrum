@@ -280,7 +280,130 @@
         },
         {
             "category": "crossDexSwap",
-            "tokenPairs": []
+            "tokenPairs": [
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "GRAIL",
+                        "address": "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "whale": "0x75691b20d872be09243a6cc24fe815d10f089847"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "camelot",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Camelot GRAIN"
+                },
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "FRAX",
+                        "address": "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+                        "whale": "0xb50421ddf9241c8998bf1e68cf6c479dadce8aa3"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "curve",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                                "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                                "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Curve FRAX"
+                },
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "SUSHI",
+                        "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "sushi",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Sushi SUSHI"
+                },
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "BAL",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "whale": "0x7b7b957c284c2c227c980d6e2f804311947b84d0"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "balancer",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Balancer BAL"
+                }
+            ]
         },
         {
             "category": "registryMisc",

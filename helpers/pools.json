@@ -117,6 +117,19 @@
                         "0x36bf227d6bac96e2ab1ebb5492ecec69c691943f000200000000000000000316",
                         "0xc764b55852f8849ae69923e45ce077a576bf9a8d0002000000000000000003d7"
                     ]
+                },
+                {
+                    "sellToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    },
+                    "buyToken": {
+                        "name": "BAL",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8"
+                    },
+                    "pools": [
+                        "0xcc65a812ce382ab909a11e434dbf75b34f1cc59d000200000000000000000001"
+                    ]
                 }
             ]
         },
@@ -147,6 +160,19 @@
                     },
                     "pools": [
                         "0xC9B8a3FDECB9D5b218d02555a8Baf332E5B740d5"
+                    ]
+                },
+                {
+                    "sellToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    },
+                    "buyToken": {
+                        "name": "USDT",
+                        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
+                    },
+                    "pools": [
+                        "0x960ea3e3c7fb317332d990873d354e18d7645590"
                     ]
                 }
             ]
