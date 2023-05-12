@@ -48,34 +48,14 @@ contract LizardDex is Ownable, ILiquidityDex, LizardDexStorage {
                 ++idx;
             }
         }
-
-        if (!isFeeOnTransfer[_path[0]][_path[_path.length - 1]]) {
-            ILizardRouter01(Addresses.lizardRouter).swapExactTokensForTokens(
+        ILizardRouter01(Addresses.lizardRouter)
+            .swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 _sellAmount,
                 _minBuyAmount,
                 routes,
                 _receiver,
                 block.timestamp
             );
-        } else {
-            ILizardRouter01(Addresses.lizardRouter)
-                .swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                    _sellAmount,
-                    _minBuyAmount,
-                    routes,
-                    _receiver,
-                    block.timestamp
-                );
-        }
-    }
-
-    function setTokenWithFeeOnTransfer(
-        address _token0,
-        address _token1,
-        bool _isFeeOnTransfer
-    ) external onlyOwner {
-        isFeeOnTransfer[_token0][_token1] = _isFeeOnTransfer;
-        isFeeOnTransfer[_token1][_token0] = _isFeeOnTransfer;
     }
 
     function setStableToken(
