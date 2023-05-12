@@ -176,6 +176,22 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "lizard",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "DAI",
+                        "address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    },
+                    "stable": true
+                }
+            ]
         }
     ]
 }

@@ -129,18 +129,18 @@
                 },
                 {
                     "sellToken": {
-                        "name": "SLIZ",
-                        "address": "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
-                        "whale": "0x00680642adb56ea659d96a91e81099c43886f513"
+                        "name": "DAI",
+                        "address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                        "whale": "0x2d070ed1321871841245d8ee5b84bd2712644322"
                     },
                     "buyToken": {
-                        "name": "WETH",
-                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "whale": "0x62383739d68dd0f844103db8dfb05a7eded5bbe6"
                     },
                     "paths": [
-                        "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
-                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                        "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
                     ],
                     "dex": "lizard"
                 },
