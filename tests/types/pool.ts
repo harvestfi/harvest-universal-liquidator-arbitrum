@@ -8,5 +8,6 @@ export interface IPoolList {
 export interface IPool {
     sellToken: IToken;
     buyToken: IToken;
-    pools: string[];
+    pools?: string[];
+    stable?: boolean;
 }

@@ -155,18 +155,22 @@ export async function addNewPool(governance: SignerWithAddress, dex: Contract, p
         const buyToken = poolInfo.buyToken.address;
         await dex.connect(governance).setPool(sellToken, buyToken, path);
         const resultPath = await dex.getPool(sellToken, buyToken);
-        path.forEach(async (poolId, index) => {
+        path?.forEach(async (poolId, index) => {
             expect(resultPath[index]).to.equal(poolId);
         });
     } else if (type === "curve") {
-        const path = poolInfo.pools;
+        const path = poolInfo.pools ?? [];
         const sellToken = poolInfo.sellToken.address;
         const buyToken = poolInfo.buyToken.address;
         await dex.connect(governance).setPool(sellToken, buyToken, path[0]);
         const resultPath = await dex.getPool(sellToken, buyToken);
-        path.forEach(async (poolId, index) => {
+        path?.forEach(async (poolId, index) => {
             expect(resultPath[index]).to.equal(poolId);
         });
+    } else if (type === "lizard") {
+        const sellToken = poolInfo.sellToken.address;
+        const buyToken = poolInfo.buyToken.address;
+        await dex.connect(governance).setStableToken(sellToken, buyToken, poolInfo.stable);
+        expect(await dex.isStable(sellToken, buyToken)).to.be.true;
     }
-
 }
