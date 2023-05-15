@@ -154,7 +154,7 @@ export async function addNewPool(governance: SignerWithAddress, dex: Contract, p
         const sellToken = poolInfo.sellToken.address;
         const buyToken = poolInfo.buyToken.address;
         await dex.connect(governance).setPool(sellToken, buyToken, path);
-        const resultPath = await dex.getPool(sellToken, buyToken);
+        const resultPath = await dex.pool(sellToken, buyToken);
         path?.forEach(async (poolId, index) => {
             expect(resultPath[index]).to.equal(poolId);
         });
@@ -163,7 +163,7 @@ export async function addNewPool(governance: SignerWithAddress, dex: Contract, p
         const sellToken = poolInfo.sellToken.address;
         const buyToken = poolInfo.buyToken.address;
         await dex.connect(governance).setPool(sellToken, buyToken, path[0]);
-        const resultPath = await dex.getPool(sellToken, buyToken);
+        const resultPath = await dex.pool(sellToken, buyToken);
         path?.forEach(async (poolId, index) => {
             expect(resultPath[index]).to.equal(poolId);
         });

@@ -77,6 +77,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
     const { sellToken, buyToken, sellAmount, minBuyAmount, testFarmer, universalLiquidator, deployedDex } = await preSwapSetup(tokenPair, pathList, poolIdList);
 
     // execute swap
+
     await sellToken.connect(testFarmer).approve(universalLiquidator.address, sellAmount);
     await universalLiquidator.connect(testFarmer).swap(sellToken.address, buyToken.address, sellAmount, minBuyAmount, testFarmer.address);
 
@@ -188,7 +189,7 @@ describe("Universal Liquidator: Swapping Tests", function () {
     if (testTokenPairs) {
       for (const tokenPair of testTokenPairs) {
         it(`Happy Path: ${tokenPair.description}`, async function () {
-          ////** Setup Accounts & Addresses *////
+          //// Setup Accounts & Addresses ////
           const { testFarmer, governance, faucet } = await loadFixture(setupAccounts);
           // setup tokens
           const { sellToken, buyToken, whale } = await utils.setupTokens(tokenPair.sellToken.address, tokenPair.buyToken.address, tokenPair.sellToken.whale, faucet);
