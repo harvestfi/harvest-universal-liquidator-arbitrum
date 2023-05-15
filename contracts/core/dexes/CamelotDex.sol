@@ -13,7 +13,10 @@ import "../../interface/camelot/ICamelotRouter.sol";
 // libraries
 import "../../libraries/Addresses.sol";
 
-contract CamelotDex is Ownable, ILiquidityDex {
+// constants and types
+import {CamelotDexStorage} from "../storage/CamelotDex.sol";
+
+contract CamelotDex is Ownable, ILiquidityDex, CamelotDexStorage {
     using SafeERC20 for IERC20;
 
     function doSwap(
@@ -21,7 +24,7 @@ contract CamelotDex is Ownable, ILiquidityDex {
         uint256 _minBuyAmount,
         address _receiver,
         address[] memory _path
-    ) public override returns (uint256) {
+    ) external override returns (uint256) {
         address sellToken = _path[0];
 
         IERC20(sellToken).safeIncreaseAllowance(
@@ -35,8 +38,18 @@ contract CamelotDex is Ownable, ILiquidityDex {
                 _minBuyAmount,
                 _path,
                 _receiver,
-                address(0),
+                _referrer,
                 block.timestamp
             );
     }
+
+    function setReferrer(address newReferrer) external onlyOwner {
+        _referrer = newReferrer;
+    }
+
+    function referrer() public view returns (address) {
+        return _referrer;
+    }
+
+    receive() external payable {}
 }
