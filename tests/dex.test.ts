@@ -2,6 +2,7 @@ import addresses from "../helpers/addresses.json";
 import fees from "../helpers/fees.json";
 import pools from "../helpers/pools.json";
 
+import * as types from "./types";
 import * as utils from "./utils";
 
 import { ethers } from "hardhat";
@@ -63,11 +64,12 @@ describe("Dexes: Functionality Tests", function () {
             await balancerDex.deployed();
 
             const testPoolList = pools.test.find(dex => dex.name === "balancer");
-            const testPoolPair = testPoolList?.pools[0];
+            const testPoolPair = testPoolList?.pools[0] as types.IPool;
             if (!testPoolPair) throw new Error(`Could not find the pools`);
             const testSellToken = testPoolPair.sellToken.address;
             const testBuyToken = testPoolPair.buyToken.address;
             const testPools = testPoolPair.pools;
+            if (!testPools) throw new Error(`Could not find the pools`);
             return { governance, balancerDex, testSellToken, testBuyToken, testPools };
         }
 
@@ -75,7 +77,7 @@ describe("Dexes: Functionality Tests", function () {
             it("Set poolId", async function () {
                 const { governance, balancerDex, testSellToken, testBuyToken, testPools } = await loadFixture(setupDex);
                 await balancerDex.connect(governance).setPool(testSellToken, testBuyToken, testPools);
-                expect(await balancerDex.getPool(testBuyToken, testSellToken)).to.eql(testPools);
+                expect(await balancerDex.pool(testBuyToken, testSellToken)).to.eql(testPools);
             });
         });
 
@@ -83,6 +85,101 @@ describe("Dexes: Functionality Tests", function () {
             it("Only owner can set poolId", async function () {
                 const { balancerDex, testSellToken, testBuyToken, testPools } = await loadFixture(setupDex);
                 const testSetPoolTx = balancerDex.setPool(testSellToken, testBuyToken, testPools);
+                expect(testSetPoolTx).to.be.revertedWith("Ownable: caller is not the owner");
+            });
+        });
+    });
+
+    describe("Camelot", function () {
+        async function setupDex() {
+            const { governance } = await loadFixture(setupAccounts);
+            const CamelotDex = await ethers.getContractFactory("CamelotDex", governance);
+            const camelotDex = await CamelotDex.deploy();
+            await camelotDex.deployed();
+
+            return { governance, camelotDex };
+        }
+
+        describe("Happy Path", function () {
+            it("Set poolId", async function () {
+                const { governance, camelotDex } = await loadFixture(setupDex);
+                await camelotDex.connect(governance).setReferrer(governance.address);
+                expect(await camelotDex.referrer()).to.be.equal(governance.address);
+            });
+        });
+
+        describe("Ownership", function () {
+            it("Only owner can set poolId", async function () {
+                const { camelotDex } = await loadFixture(setupDex);
+                const testSetPoolTx = camelotDex.setReferrer(ethers.Wallet.createRandom().address);
+                expect(testSetPoolTx).to.be.revertedWith("Ownable: caller is not the owner");
+            });
+        });
+    });
+
+    describe("Curve", function () {
+        async function setupDex() {
+            const { governance } = await loadFixture(setupAccounts);
+            const CurveDex = await ethers.getContractFactory("CurveDex", governance);
+            const curveDex = await CurveDex.deploy();
+            await curveDex.deployed();
+
+            const testPoolList = pools.test.find(dex => dex.name === "curve");
+            const testPoolPair = testPoolList?.pools[0] as types.IPool;
+            if (!testPoolPair) throw new Error(`Could not find the pools`);
+            const testSellToken = testPoolPair.sellToken.address;
+            const testBuyToken = testPoolPair.buyToken.address;
+            const testPools = testPoolPair.pools;
+            if (!testPools) throw new Error(`Could not find the pools`);
+            return { governance, curveDex, testSellToken, testBuyToken, testPools };
+        }
+
+        describe("Happy Path", function () {
+            it("Set poolId", async function () {
+                const { governance, curveDex, testSellToken, testBuyToken, testPools } = await loadFixture(setupDex);
+                await curveDex.connect(governance).setPool(testSellToken, testBuyToken, testPools[0]);
+                expect(await curveDex.pool(testBuyToken, testSellToken)).to.eql(testPools[0]);
+            });
+        });
+
+        describe("Ownership", function () {
+            it("Only owner can set poolId", async function () {
+                const { curveDex, testSellToken, testBuyToken, testPools } = await loadFixture(setupDex);
+                const testSetPoolTx = curveDex.setPool(testSellToken, testBuyToken, testPools[0]);
+                expect(testSetPoolTx).to.be.revertedWith("Ownable: caller is not the owner");
+            });
+        });
+    });
+
+    describe("Lizard", function () {
+        async function setupDex() {
+            const { governance } = await loadFixture(setupAccounts);
+            const LizardDex = await ethers.getContractFactory("LizardDex", governance);
+            const lizardDex = await LizardDex.deploy();
+            await lizardDex.deployed();
+
+            const testPoolList = pools.test.find(dex => dex.name === "lizard");
+            const testPoolPair = testPoolList?.pools[0] as types.IPool;
+            if (!testPoolPair) throw new Error(`Could not find the pools`);
+            const testSellToken = testPoolPair.sellToken.address;
+            const testBuyToken = testPoolPair.buyToken.address;
+            const isStable = testPoolPair.stable;
+            if (!isStable) throw new Error(`Could not find the stable status`);
+            return { governance, lizardDex, testSellToken, testBuyToken, isStable };
+        }
+
+        describe("Happy Path", function () {
+            it("Set poolId", async function () {
+                const { governance, lizardDex, testSellToken, testBuyToken, isStable } = await loadFixture(setupDex);
+                await lizardDex.connect(governance).setStableToken(testSellToken, testBuyToken, isStable);
+                expect(await lizardDex.isStable(testBuyToken, testSellToken)).to.eql(isStable);
+            });
+        });
+
+        describe("Ownership", function () {
+            it("Only owner can set poolId", async function () {
+                const { lizardDex, testSellToken, testBuyToken, isStable } = await loadFixture(setupDex);
+                const testSetPoolTx = lizardDex.setStableToken(testSellToken, testBuyToken, isStable);
                 expect(testSetPoolTx).to.be.revertedWith("Ownable: caller is not the owner");
             });
         });
