@@ -17,8 +17,8 @@ import {BaseDexStorage} from "../storage/BaseDex.sol";
 contract UniBasedDex is Ownable, ILiquidityDex, BaseDexStorage {
     using SafeERC20 for IERC20;
 
-    constructor(address _router) {
-        router = _router;
+    constructor(address _initRouter) {
+        _router = _initRouter;
     }
 
     function doSwap(
@@ -26,12 +26,12 @@ contract UniBasedDex is Ownable, ILiquidityDex, BaseDexStorage {
         uint256 _minBuyAmount,
         address _receiver,
         address[] memory _path
-    ) public override returns (uint256) {
+    ) external override returns (uint256) {
         address sellToken = _path[0];
 
-        IERC20(sellToken).safeIncreaseAllowance(router, _sellAmount);
+        IERC20(sellToken).safeIncreaseAllowance(_router, _sellAmount);
 
-        uint256[] memory returned = IUniswapV2Router02(router)
+        uint256[] memory returned = IUniswapV2Router02(_router)
             .swapExactTokensForTokens(
                 _sellAmount,
                 _minBuyAmount,
@@ -41,6 +41,10 @@ contract UniBasedDex is Ownable, ILiquidityDex, BaseDexStorage {
             );
 
         return returned[returned.length - 1];
+    }
+
+    function router() public view returns (address) {
+        return _router;
     }
 
     receive() external payable {}

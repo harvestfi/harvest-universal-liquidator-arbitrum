@@ -24,7 +24,7 @@ contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
         uint256 _minBuyAmount,
         address _receiver,
         address[] memory _path
-    ) public override returns (uint256) {
+    ) external override returns (uint256) {
         address sellToken = _path[0];
         address buyToken = _path[_path.length - 1];
 
@@ -89,7 +89,7 @@ contract BalancerDex is Ownable, ILiquidityDex, BalancerDexStorage {
         _poolIds[_token1][_token0] = _poolId;
     }
 
-    function getPool(
+    function pool(
         address _token0,
         address _token1
     ) public view returns (bytes32[] memory) {

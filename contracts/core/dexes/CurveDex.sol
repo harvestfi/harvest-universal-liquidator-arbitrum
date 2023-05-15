@@ -24,7 +24,7 @@ contract CurveDex is Ownable, ILiquidityDex, CurveDexStorage {
         uint256 _minBuyAmount,
         address _receiver,
         address[] memory _path
-    ) public override returns (uint256) {
+    ) external override returns (uint256) {
         uint256 sellAmount = _sellAmount;
         uint256 minBuyAmount;
         address receiver;
@@ -70,10 +70,12 @@ contract CurveDex is Ownable, ILiquidityDex, CurveDexStorage {
         _pool[_token1][_token0] = _poolAddr;
     }
 
-    function getPool(
+    function pool(
         address _token0,
         address _token1
     ) public view returns (address) {
         return _pool[_token0][_token1];
     }
+
+    receive() external payable {}
 }

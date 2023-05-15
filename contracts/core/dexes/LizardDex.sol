@@ -24,7 +24,7 @@ contract LizardDex is Ownable, ILiquidityDex, LizardDexStorage {
         uint256 _minBuyAmount,
         address _receiver,
         address[] memory _path
-    ) public override returns (uint256) {
+    ) external override returns (uint256) {
         address sellToken = _path[0];
 
         IERC20(sellToken).safeIncreaseAllowance(
@@ -42,7 +42,7 @@ contract LizardDex is Ownable, ILiquidityDex, LizardDexStorage {
 
             routes[idx].from = curSellToken;
             routes[idx].to = curBuyToken;
-            routes[idx].stable = isStable[curSellToken][curBuyToken];
+            routes[idx].stable = _isStable[curSellToken][curBuyToken];
 
             unchecked {
                 ++idx;
@@ -61,9 +61,18 @@ contract LizardDex is Ownable, ILiquidityDex, LizardDexStorage {
     function setStableToken(
         address _token0,
         address _token1,
-        bool _isStable
+        bool _stableStatus
     ) external onlyOwner {
-        isStable[_token0][_token1] = _isStable;
-        isStable[_token1][_token0] = _isStable;
+        _isStable[_token0][_token1] = _stableStatus;
+        _isStable[_token1][_token0] = _stableStatus;
     }
+
+    function isStable(
+        address _token0,
+        address _token1
+    ) public view returns (bool) {
+        return _isStable[_token0][_token1];
+    }
+
+    receive() external payable {}
 }
