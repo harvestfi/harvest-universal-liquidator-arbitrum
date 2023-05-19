@@ -1,5 +1,7 @@
 import { ethers } from "hardhat";
 
+import intermediateTokens from "../helpers/intermediate-tokens.json";
+
 async function main() {
     const addrs = await ethers.getSigners();
 
@@ -16,6 +18,8 @@ async function main() {
     await universalLiquidator.deployed();
     await universalLiquidator.setPathRegistry(registry.address);
     console.log("UL address:", universalLiquidator.address);
+
+    await registry.setIntermediateToken(intermediateTokens.list);
 }
 
 main().catch((error) => {

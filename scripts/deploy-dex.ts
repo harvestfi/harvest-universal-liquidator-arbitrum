@@ -2,12 +2,16 @@ import { ethers } from "hardhat";
 import { Contract, ContractFactory } from "ethers";
 import prompts from "prompts";
 
+import address from "../helpers/addresses.json";
+
 async function main() {
     const addrs = await ethers.getSigners();
 
     console.log("Deploying contracts with the account:", addrs[0].address);
     console.log("Account balance:", (await addrs[0].getBalance()).toString());
 
+    const ULR = await ethers.getContractFactory("UniversalLiquidatorRegistry");
+    const universalLiquidatorRegistry = ULR.attach(address.UniversalLiquidatorRegistryAddr);
 
     const { dex, name } = await prompts([{
         type: 'text',
@@ -25,6 +29,7 @@ async function main() {
         const deployedDex = await Dex.deploy();
         await deployedDex.deployed();
         console.log(`${dex} address:`, deployedDex.address);
+        await universalLiquidatorRegistry.addDex(ethers.utils.formatBytes32String(name), deployedDex.address);
     } else {
         console.error('Dex contract factory does not have a deploy method.');
     }
