@@ -63,7 +63,7 @@ contract UniV3Dex is Ownable, ILiquidityDex, UniswapV3DexStorage {
         if (_pairFee[_sellToken][_buyToken] != 0) {
             return _pairFee[_sellToken][_buyToken];
         } else {
-            return 3000;
+            return 500;
         }
     }
 
