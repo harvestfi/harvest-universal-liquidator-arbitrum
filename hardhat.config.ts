@@ -50,7 +50,7 @@ const hardhatConfig: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      mainnet: `${process.env.ARBISCAN_API_KEY}`
+      arbitrumOne: `${process.env.ARBISCAN_API_KEY}`
     },
   },
   gasReporter: {

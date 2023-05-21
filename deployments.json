@@ -1,10 +1,14 @@
 {
-  "UniversalLiquidator": "0x...",
-  "UniversalLiquidatorRegistry": "0x...",
+  "UniversalLiquidator": "0x5f513cA572e7eD10487cEF2b0636C07eA9b82AD8",
+  "UniversalLiquidatorRegistry": "0xbcE9d31FfA2c96E11cEbEAa021136a83A3575D95",
   "Dexes": {
-    "example": {
-      "hex": "0x...",
-      "address": "0x..."
+    "camelot": {
+      "hex": "0x7c025502cd8618334ac0e9af7aa2e31f414909ec7f1b6a782a7a98fa94322559",
+      "address": "0xea80591533Df077Eaa063f97434d29222fce0dB1"
+    },
+    "uniV3": {
+      "hex": "0x8f78a54cb77f4634a5bf3dd452ed6a2e33432c73821be59208661199511cd94f",
+      "address": "0x357F2E6Cd64A1fD4525e4eC22d7635115C9Ca3cb"
     }
   }
 }

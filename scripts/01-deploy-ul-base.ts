@@ -20,6 +20,7 @@ async function main() {
     console.log("UL address:", universalLiquidator.address);
 
     await registry.setIntermediateToken(intermediateTokens.list);
+    console.log("Added intermediate tokens:", intermediateTokens.list);
 }
 
 main().catch((error) => {

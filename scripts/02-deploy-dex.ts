@@ -10,8 +10,10 @@ async function main() {
     console.log("Deploying contracts with the account:", addrs[0].address);
     console.log("Account balance:", (await addrs[0].getBalance()).toString());
 
-    const ULR = await ethers.getContractFactory("UniversalLiquidatorRegistry");
-    const universalLiquidatorRegistry = ULR.attach(address.UniversalLiquidatorRegistryAddr);
+    const registry = await ethers.getContractAt(
+        "UniversalLiquidatorRegistry",
+        address.UniversalLiquidatorRegistryAddr
+    );
 
     const { dex, name } = await prompts([{
         type: 'text',
@@ -28,8 +30,11 @@ async function main() {
     if ('deploy' in Dex) {
         const deployedDex = await Dex.deploy();
         await deployedDex.deployed();
+        const nameBytes = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(name));
+        console.log(`${dex} id:`, nameBytes);
         console.log(`${dex} address:`, deployedDex.address);
-        await universalLiquidatorRegistry.addDex(ethers.utils.formatBytes32String(name), deployedDex.address);
+        await registry.addDex(nameBytes, deployedDex.address);
+        console.log("Dex added to the Registry:", nameBytes, deployedDex.address);
     } else {
         console.error('Dex contract factory does not have a deploy method.');
     }

@@ -58,7 +58,7 @@ contract LizardDex is Ownable, ILiquidityDex, LizardDexStorage {
             );
     }
 
-    function setStableToken(
+    function setStable(
         address _token0,
         address _token1,
         bool _stableStatus
