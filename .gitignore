@@ -1,9 +1,11 @@
+.env
 node_modules
 
 #Hardhat files
 cache
 artifacts
 deployments
+build
 
 secret.json
 dev-keys.json

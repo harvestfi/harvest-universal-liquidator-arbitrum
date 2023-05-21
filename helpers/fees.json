@@ -1,0 +1,31 @@
+{
+    "list": [
+        {
+            "name": "uniV3",
+            "pools": [
+                {
+                    "sellToken": {
+                        "name": "DAI",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    },
+                    "fee": 500
+                },
+                {
+                    "sellToken": {
+                        "name": "DAI",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    },
+                    "fee": 100
+                }
+            ]
+        }
+    ]
+}

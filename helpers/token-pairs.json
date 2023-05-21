@@ -1,0 +1,537 @@
+{
+    "list": [
+        {
+            "sellToken": {
+                "name": "BAL",
+                "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                "whale": "0x7b7b957c284c2c227c980d6e2f804311947b84d0"
+            },
+            "buyToken": {
+                "name": "ARB",
+                "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+            },
+            "paths": [
+                "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "0x912CE59144191C1204E64559FE8253a0e49E6548"
+            ],
+            "dex": "balancer"
+        },
+        {
+            "sellToken": {
+                "name": "DAI",
+                "address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                "whale": "0x0787bda6907e9d18d026e882cabb25c8ec636e98"
+            },
+            "buyToken": {
+                "name": "CRV",
+                "address": "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978",
+                "whale": "0x4a65e76be1b4e8dd6ef618277fa55200e3f8f20a"
+            },
+            "paths": [
+                "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978"
+            ],
+            "dex": "uniV3"
+        },
+        {
+            "sellToken": {
+                "name": "SUSHI",
+                "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+            },
+            "buyToken": {
+                "name": "ARB",
+                "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+            },
+            "paths": [
+                "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                "0x912CE59144191C1204E64559FE8253a0e49E6548"
+            ],
+            "dex": "sushi"
+        }
+    ],
+    "test": [
+        {
+            "category": "singleSwap",
+            "tokenPairs": [
+                {
+                    "sellToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "uniV3"
+                },
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "whale": "0xd090d2c8475c5ebdd1434a48897d81b9aaa20594"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "paths": [
+                        "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    ],
+                    "dex": "balancer"
+                },
+                {
+                    "sellToken": {
+                        "name": "SUSHI",
+                        "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "paths": [
+                        "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    ],
+                    "dex": "sushi"
+                },
+                {
+                    "sellToken": {
+                        "name": "GRAIL",
+                        "address": "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "whale": "0x75691b20d872be09243a6cc24fe815d10f089847"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "paths": [
+                        "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    ],
+                    "dex": "camelot"
+                },
+                {
+                    "sellToken": {
+                        "name": "DAI",
+                        "address": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                        "whale": "0x2d070ed1321871841245d8ee5b84bd2712644322"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "whale": "0x62383739d68dd0f844103db8dfb05a7eded5bbe6"
+                    },
+                    "paths": [
+                        "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    ],
+                    "dex": "lizard"
+                },
+                {
+                    "sellToken": {
+                        "name": "USDT",
+                        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "whale": "0xf89d7b9c864f589bbf53a82105107622b35eaa40"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "whale": "0x62383739d68dd0f844103db8dfb05a7eded5bbe6"
+                    },
+                    "paths": [
+                        "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    ],
+                    "dex": "curve"
+                }
+            ]
+        },
+        {
+            "category": "multiSwap",
+            "tokenPairs": [
+                {
+                    "sellToken": {
+                        "name": "GMX",
+                        "address": "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a",
+                        "whale": "0xb38e8c17e38363af6ebdcb3dae12e0243582891d"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "uniV3"
+                },
+                {
+                    "sellToken": {
+                        "name": "BAL",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "whale": "0x7b7b957c284c2c227c980d6e2f804311947b84d0"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "balancer"
+                },
+                {
+                    "sellToken": {
+                        "name": "SUSHI",
+                        "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "sushi"
+                },
+                {
+                    "sellToken": {
+                        "name": "GRAIL",
+                        "address": "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "whale": "0x75691b20d872be09243a6cc24fe815d10f089847"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "camelot"
+                },
+                {
+                    "sellToken": {
+                        "name": "SLIZ",
+                        "address": "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
+                        "whale": "0x00680642adb56ea659d96a91e81099c43886f513"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x463913D3a3D3D291667D53B8325c598Eb88D3B0e",
+                        "0x1A5B0aaF478bf1FDA7b934c76E7692D722982a6D",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "lizard"
+                },
+                {
+                    "sellToken": {
+                        "name": "USDT",
+                        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "whale": "0xf89d7b9c864f589bbf53a82105107622b35eaa40"
+                    },
+                    "buyToken": {
+                        "name": "FRAX",
+                        "address": "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+                        "whale": "0xb50421ddf9241c8998bf1e68cf6c479dadce8aa3"
+                    },
+                    "paths": [
+                        "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F"
+                    ],
+                    "dex": "curve"
+                }
+            ]
+        },
+        {
+            "category": "crossDexSwap",
+            "tokenPairs": [
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "GRAIL",
+                        "address": "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8",
+                        "whale": "0x75691b20d872be09243a6cc24fe815d10f089847"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "camelot",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Camelot GRAIN"
+                },
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "FRAX",
+                        "address": "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+                        "whale": "0xb50421ddf9241c8998bf1e68cf6c479dadce8aa3"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "curve",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                                "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                                "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Curve FRAX"
+                },
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "SUSHI",
+                        "address": "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "sushi",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0xd4d42F0b6DEF4CE0383636770eF773390d85c61A"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Sushi SUSHI"
+                },
+                {
+                    "sellToken": {
+                        "name": "UNI",
+                        "address": "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                        "whale": "0x1714400ff23db4af24f9fd64e7039e6597f18c2b"
+                    },
+                    "buyToken": {
+                        "name": "BAL",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "whale": "0x7b7b957c284c2c227c980d6e2f804311947b84d0"
+                    },
+                    "intermediate": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                    "dexes": [
+                        {
+                            "name": "uniV3",
+                            "paths": [
+                                "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0",
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                            ]
+                        },
+                        {
+                            "name": "balancer",
+                            "paths": [
+                                "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                                "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8"
+                            ]
+                        }
+                    ],
+                    "description": "UniV3 UNI -> WETH -> Balancer BAL"
+                }
+            ]
+        },
+        {
+            "category": "registryMisc",
+            "tokenPairs": [
+                {
+                    "sellToken": {
+                        "name": "BAL",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "whale": "0x7b7b957c284c2c227c980d6e2f804311947b84d0"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "balancer"
+                },
+                {
+                    "sellToken": {
+                        "name": "BAL",
+                        "address": "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "whale": "0x7b7b957c284c2c227c980d6e2f804311947b84d0"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "uniV3"
+                },
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "whale": "0xd090d2c8475c5ebdd1434a48897d81b9aaa20594"
+                    },
+                    "buyToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "paths": [
+                        "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+                    ],
+                    "dex": "balancer"
+                },
+                {
+                    "sellToken": {
+                        "name": "WETH",
+                        "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "whale": "0xc6d973b31bb135caba83cf0574c0347bd763ecc5"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "uniV3"
+                },
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "whale": "0xd090d2c8475c5ebdd1434a48897d81b9aaa20594"
+                    },
+                    "buyToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "whale": "0x62383739d68dd0f844103db8dfb05a7eded5bbe6"
+                    },
+                    "paths": [
+                        "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+                    ],
+                    "dex": "balancer"
+                },
+                {
+                    "sellToken": {
+                        "name": "USDC",
+                        "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "whale": "0x62383739d68dd0f844103db8dfb05a7eded5bbe6"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "uniV3"
+                },
+                {
+                    "sellToken": {
+                        "name": "wstETH",
+                        "address": "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "whale": "0xd090d2c8475c5ebdd1434a48897d81b9aaa20594"
+                    },
+                    "buyToken": {
+                        "name": "ARB",
+                        "address": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+                        "whale": "0xf977814e90da44bfa03b6295a0616a897441acec"
+                    },
+                    "paths": [
+                        "0x5979D7b546E38E414F7E9822514be443A4800529",
+                        "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+                        "0x912CE59144191C1204E64559FE8253a0e49E6548"
+                    ],
+                    "dex": "balancer"
+                }
+            ]
+        }
+    ]
+}
