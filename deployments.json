@@ -9,6 +9,10 @@
     "uniV3": {
       "hex": "0x8f78a54cb77f4634a5bf3dd452ed6a2e33432c73821be59208661199511cd94f",
       "address": "0x357F2E6Cd64A1fD4525e4eC22d7635115C9Ca3cb"
+    },
+    "balancer": {
+      "hex": "0x9e73ce1e99df7d45bc513893badf42bc38069f1564ee511b0c8988f72f127b13",
+      "address": "0x48aC1856D6B96ae9F29107a3A0Be825BFEF58014"
     }
   }
 }
