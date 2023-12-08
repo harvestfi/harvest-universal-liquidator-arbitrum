@@ -13,6 +13,14 @@
     "balancer": {
       "hex": "0x9e73ce1e99df7d45bc513893badf42bc38069f1564ee511b0c8988f72f127b13",
       "address": "0x48aC1856D6B96ae9F29107a3A0Be825BFEF58014"
+    },
+    "sushi": {
+      "hex": "0xcb2d20206d906069351c89a2cb7cdbd96c71998717cd5a82e724d955b654f67a",
+      "address": "0x6D2EC837eC108d69130350CfC3B802749D48d9CB"
+    },
+    "traderJoe": {
+      "hex": "0xe7c94774426f847eecd05aeab722ffe4b8665b062debc04c0d5b2ea2836dc139",
+      "address": "0xc30438cE0045FE064e20AF6342dF3E467C44EdBf"
     }
   }
 }
