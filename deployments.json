@@ -25,6 +25,10 @@
     "curve": {
       "hex": "0x5af0ee7dec5167f618066986345e64763b2d91718dfb37f9969a1b0670a83e71",
       "address": "0x1Cfb2106541E3fe421F9c3b43fE1F84838972aFe"
+    },
+    "camelotV3": {
+      "hex": "0x52e84c9083085766a85c903ceb033ac0d9700a913369a976d9e9431021d59ef5",
+      "address": "0xA365b6B75929D21fA04663EBfaAf3cF902ed37eE"
     }
   }
 }

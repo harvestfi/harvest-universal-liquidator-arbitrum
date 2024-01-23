@@ -11,4 +11,5 @@ library Addresses {
     address constant lizardRouter = 0xF26515D5482e2C2FD237149bF6A653dA4794b3D0;
     address constant curveRouter = 0x4c2Af2Df2a7E567B5155879720619EA06C5BB15D;
     address constant traderJoeRouter = 0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30;
+    address constant camelotV3Router = 0x1F721E2E82F6676FCE4eA07A5958cF098D339e18;
 }
