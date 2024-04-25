@@ -29,6 +29,14 @@
     "camelotV3": {
       "hex": "0x52e84c9083085766a85c903ceb033ac0d9700a913369a976d9e9431021d59ef5",
       "address": "0xA365b6B75929D21fA04663EBfaAf3cF902ed37eE"
+    },
+    "aave": {
+      "hex": "0xe0a39fef8aa5887c76606e7a14a5db8dc6676191e4866b2a609a3aa003b18329",
+      "address": "0x7E8111eB62661aC225AA9C4f150F733c46151848"
+    },
+    "erc4626": {
+      "hex": "0x45f39c8c7e3105201fd8b1288ac068347728af9cfd16f3f08e97171ef955c9ab",
+      "address": "0xA0B1EfD3f210A7EB32D84E983d5164cc4CD2Be58"
     }
   }
 }
