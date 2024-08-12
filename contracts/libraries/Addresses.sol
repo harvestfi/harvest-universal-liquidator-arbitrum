@@ -9,8 +9,9 @@ library Addresses {
         0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
     address constant camelotRouter = 0xc873fEcbd354f5A56E00E710B90EF4201db2448d;
     address constant lizardRouter = 0xF26515D5482e2C2FD237149bF6A653dA4794b3D0;
-    address constant curveRouter = 0x4c2Af2Df2a7E567B5155879720619EA06C5BB15D;
+    address constant curveRouter = 0xF0d4c12A5768D806021F80a262B4d39d26C58b8D;
     address constant traderJoeRouter = 0xb4315e873dBcf96Ffd0acd8EA43f689D8c20fB30;
     address constant camelotV3Router = 0x1F721E2E82F6676FCE4eA07A5958cF098D339e18;
     address constant aaveV3Pool = 0x794a61358D6845594F94dc1DB02A252b5b4814aD;
+    address constant pancakeV3Router = 0x32226588378236Fd0c7c4053999F88aC0e5cAc77;
 }

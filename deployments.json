@@ -24,7 +24,7 @@
     },
     "curve": {
       "hex": "0x5af0ee7dec5167f618066986345e64763b2d91718dfb37f9969a1b0670a83e71",
-      "address": "0x1Cfb2106541E3fe421F9c3b43fE1F84838972aFe"
+      "address": "0xdeb935422497c8bD46B84e066c742d3A21BEe06b"
     },
     "camelotV3": {
       "hex": "0x52e84c9083085766a85c903ceb033ac0d9700a913369a976d9e9431021d59ef5",
@@ -37,6 +37,10 @@
     "erc4626": {
       "hex": "0x45f39c8c7e3105201fd8b1288ac068347728af9cfd16f3f08e97171ef955c9ab",
       "address": "0xA0B1EfD3f210A7EB32D84E983d5164cc4CD2Be58"
+    },
+    "pancakeV3": {
+      "hex": "0x4d6015abe815c07969174e9c2e023ed50f9446b300257863a808732fef3dd7db",
+      "address": "0x7F60C26a34D2B9D99D8DeFD321C32fd717bEB8A5"
     }
   }
 }
