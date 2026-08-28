@@ -7,7 +7,12 @@
   "main": "hardhat.config.ts",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "registry:seed": "hardhat run scripts/08-seed-registry.ts --network mainnet",
+    "registry:audit": "hardhat run scripts/09-audit-registry.ts --network mainnet",
+    "registry:sync": "hardhat run scripts/10-sync-registry.ts --network mainnet",
+    "registry:routes": "hardhat run scripts/11-propose-routes.ts --network mainnet",
+    "registry:apply": "hardhat run scripts/12-apply-proposals.ts --network mainnet"
   },
   "author": "",
   "devDependencies": {
