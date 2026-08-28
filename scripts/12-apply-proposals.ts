@@ -5,7 +5,7 @@ import { utils } from "ethers";
 
 import {
     Call, DexEntry, IDEX, IREGISTRY, Manifest, PROPOSALS, ProposalFile, Route, ZERO,
-    buildQuote, curveCoinIndex, decode, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
+    buildQuote, curveCoinIndex, decode, errText, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
 } from "./utils/registry";
 
 const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view returns (address)"]);
@@ -245,7 +245,7 @@ async function main() {
                 console.log(`  ${++sent}/${ops.length} ${o.kind} ${o.what} -> ${rcpt.transactionHash}`);
             } catch (e: any) {
                 ok = false;
-                failed.push({ proposal: pi, op: o, error: e?.shortMessage ?? e?.reason ?? String(e?.message ?? e).split("\n")[0] });
+                failed.push({ proposal: pi, op: o, error: errText(e) });
                 console.log(`  !! ${o.kind} ${o.what} FAILED: ${failed[failed.length - 1].error}`);
                 console.log(`     skipping the rest of ${pr.proposed.symbols}`);
                 break;
