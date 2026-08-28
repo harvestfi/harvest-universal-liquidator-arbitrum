@@ -2,6 +2,23 @@ import { BigNumber, Signer, Wallet, providers, utils } from "ethers";
 import fs from "fs";
 import path from "path";
 
+// hardhat.config loads .env for the hardhat repos; nothing does under plain
+// ts-node, so load it here. Existing environment variables still win.
+(() => {
+    for (const dir of [process.cwd(), path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../..")]) {
+        const file = path.join(dir, ".env");
+        if (!fs.existsSync(file)) continue;
+        for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+            const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+            if (!m) continue;
+            const key = m[1];
+            if (process.env[key] !== undefined) continue;
+            process.env[key] = m[2].trim().replace(/^(['"])(.*)\1$/, "$2");
+        }
+        break;
+    }
+})();
+
 export const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11";
 // Layouts differ between repos: the hardhat ones keep this in helpers/, the
 // Foundry ones under tools/. Resolve either, and let an env var win.
@@ -185,7 +202,7 @@ export function provider(): providers.Provider {
     const url = process.env.REGISTRY_RPC_URL;
     if (url) return new providers.JsonRpcProvider(url);
     const hh = hardhatEthers();
-    if (!hh) throw new Error("set REGISTRY_RPC_URL (no hardhat runtime to fall back to)");
+    if (!hh) throw new Error("set REGISTRY_RPC_URL, in .env or the environment");
     const fallback: any = hh.provider;
     if (!warned && String(fallback?.connection?.url ?? "").includes(THROTTLED)) {
         warned = true;
