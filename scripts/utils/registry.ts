@@ -216,10 +216,37 @@ export function provider(): providers.Provider {
  * and on Arbitrum that estimate is routinely a little under what execution
  * ends up needing, which shows up as an out-of-gas with gasUsed == gasLimit.
  */
+/** Dig the node's own words out of an ethers error, which buries them. */
+export function errText(e: any): string {
+    const node = e?.error?.message ?? e?.data?.message;
+    if (node) return String(node);
+    if (e?.body) {
+        try { return String(JSON.parse(e.body)?.error?.message ?? e.body).slice(0, 200); } catch { /* not json */ }
+    }
+    return String(e?.shortMessage ?? e?.reason ?? e?.message ?? e).split("\n")[0];
+}
+
 export async function sendTx(sender: Signer, tx: { to: string; data: string }) {
     const estimate = await sender.estimateGas(tx);
     const gasLimit = estimate.mul(15).div(10).add(25_000);
-    return sender.sendTransaction({ ...tx, gasLimit });
+
+    // ethers hardcodes a 1.5 gwei priority fee. Polygon's floor is 30, so every
+    // send is rejected as underpriced and surfaces only as "processing response
+    // error". Ask the node what it wants and take the higher of the two.
+    const fee: Record<string, BigNumber> = {};
+    try {
+        const provider: any = sender.provider;
+        const hinted = BigNumber.from(await provider.send("eth_maxPriorityFeePerGas", []));
+        const fd = await provider.getFeeData();
+        if (fd.maxFeePerGas && fd.maxPriorityFeePerGas) {
+            const tip = hinted.gt(fd.maxPriorityFeePerGas) ? hinted : fd.maxPriorityFeePerGas;
+            fee.maxPriorityFeePerGas = tip;
+            fee.maxFeePerGas = fd.maxFeePerGas.gt(tip) ? fd.maxFeePerGas.add(tip) : tip.mul(2);
+        }
+    } catch {
+        // node offers no hint, so ethers' own estimate stands
+    }
+    return sender.sendTransaction({ ...tx, gasLimit, ...fee });
 }
 
 /** Signer for the scripts that write. Reads and writes share one provider. */
