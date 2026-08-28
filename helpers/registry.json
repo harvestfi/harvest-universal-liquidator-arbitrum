@@ -4,7 +4,7 @@
     "registry": "0xbcE9d31FfA2c96E11cEbEAa021136a83A3575D95",
     "universalLiquidator": "0x5f513cA572e7eD10487cEF2b0636C07eA9b82AD8",
     "owner": "0x6a74649aCFD7822ae8Fb78463a9f2192752E5Aa2",
-    "generatedAtBlock": 499307823,
+    "generatedAtBlock": 499313485,
     "intermediateTokens": [
         "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
         "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
@@ -1407,16 +1407,6 @@
         },
         {
             "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-            "buyToken": "0x0c880f6761f1af8d9aa9c466984b80dab9a8c9e8",
-            "symbols": "WETH > PENDLE",
-            "dex": "camelotV3",
-            "path": [
-                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-                "0x0c880f6761f1af8d9aa9c466984b80dab9a8c9e8"
-            ]
-        },
-        {
-            "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "buyToken": "0xb688ba096b7bb75d7841e47163cd12d18b36a5bf",
             "symbols": "WETH > PENDLE > mPendle",
             "dex": "uniV3",
@@ -1516,6 +1506,17 @@
             "path": [
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                 "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9"
+            ]
+        },
+        {
+            "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+            "buyToken": "0x0c880f6761f1af8d9aa9c466984b80dab9a8c9e8",
+            "symbols": "WETH > USD₮0 > PENDLE",
+            "dex": "uniV3",
+            "path": [
+                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                "0x0c880f6761f1af8d9aa9c466984b80dab9a8c9e8"
             ]
         },
         {
