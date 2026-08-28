@@ -194,6 +194,17 @@ export function provider(): providers.Provider {
     return fallback;
 }
 
+/**
+ * Send with headroom over the estimate. ethers uses eth_estimateGas verbatim,
+ * and on Arbitrum that estimate is routinely a little under what execution
+ * ends up needing, which shows up as an out-of-gas with gasUsed == gasLimit.
+ */
+export async function sendTx(sender: Signer, tx: { to: string; data: string }) {
+    const estimate = await sender.estimateGas(tx);
+    const gasLimit = estimate.mul(15).div(10).add(25_000);
+    return sender.sendTransaction({ ...tx, gasLimit });
+}
+
 /** Signer for the scripts that write. Reads and writes share one provider. */
 export async function signer(): Promise<Signer> {
     const p = provider();

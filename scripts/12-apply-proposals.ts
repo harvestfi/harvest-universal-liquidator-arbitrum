@@ -5,7 +5,7 @@ import { utils } from "ethers";
 
 import {
     Call, DexEntry, IDEX, IREGISTRY, Manifest, PROPOSALS, ProposalFile, Route, ZERO,
-    buildQuote, curveCoinIndex, decode, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, signer,
+    buildQuote, curveCoinIndex, decode, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
 } from "./utils/registry";
 
 const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view returns (address)"]);
@@ -18,7 +18,7 @@ const EXECUTE = process.env.APPLY_EXECUTE === "1";
 const ONLY = process.env.APPLY_ONLY?.split(",").map((x) => x.trim()).filter(Boolean);
 const SKIP_RECHECK = process.env.APPLY_SKIP_RECHECK === "1";
 
-interface Op { kind: string; to: string; data: string; what: string }
+interface Op { kind: string; to: string; data: string; what: string; proposal: number }
 
 async function main() {
     const file: ProposalFile = JSON.parse(fs.readFileSync(process.env.APPLY_IN ?? PROPOSALS, "utf8"));
@@ -34,6 +34,26 @@ async function main() {
     let chosen = file.proposals.map((pr, i) => ({ pr, i }));
     if (ONLY) chosen = chosen.filter(({ pr, i }) =>
         ONLY.includes(String(i)) || ONLY.includes(`${sym(pr.sellToken)}>${sym(pr.buyToken)}`));
+
+    // Anything already on chain is done: re-running after a partial or failed
+    // run should pick up where it stopped, not resend what landed.
+    const already = await multicall(p, chosen.flatMap(({ pr }) => [
+        { target: m.registry, data: IREGISTRY.encodeFunctionData("paths", [pr.sellToken, pr.buyToken]) },
+        { target: m.registry, data: IREGISTRY.encodeFunctionData("getPath", [pr.sellToken, pr.buyToken]) },
+    ]));
+    const applied = new Set<number>();
+    chosen.forEach(({ pr }, n) => {
+        const wantHex = byName.get(pr.proposed.dex)?.hex;
+        const haveHex = decode<string>(IREGISTRY, "paths", already[n * 2]);
+        const legs = decode<any[]>(IREGISTRY, "getPath", already[n * 2 + 1]);
+        const route = legs?.length === 1 ? (legs[0].paths as string[]).map(lc) : undefined;
+        if (wantHex && haveHex && lc(haveHex) === lc(wantHex)
+            && route?.join(",") === pr.proposed.path.map(lc).join(",")) applied.add(n);
+    });
+    if (applied.size) {
+        console.log(`${applied.size} proposal(s) already on chain, skipping`);
+        chosen = chosen.filter((_, n) => !applied.has(n));
+    }
 
     const age = (await p.getBlockNumber()) - file.generatedAtBlock;
     console.log(`${file.proposals.length} proposal(s) from block ${file.generatedAtBlock} (${age} blocks ago), $${file.usd} swaps`);
@@ -138,7 +158,7 @@ async function main() {
     const normFactory = (f: string) => (lc(f) === ZERO ? defaultFactory : lc(f));
 
     const ops: Op[] = [];
-    for (const { pr } of keep) {
+    for (const [pi, { pr }] of keep.entries()) {
         const dex = byName.get(pr.proposed.dex)!;
         const reads: Call[] = [];
         for (const h of pr.proposed.hops) {
@@ -158,14 +178,14 @@ async function main() {
             if (dex.kind === "uniV3") {
                 const have = Number(decode<any>(IDEX, "pairFee", cur[k++]) ?? 0);
                 if (have !== h.fee) {
-                    ops.push({ kind: "setFee", to: dex.address, what: `${label} ${have} -> ${h.fee}`,
+                    ops.push({ kind: "setFee", to: dex.address, what: `${label} ${have} -> ${h.fee}`, proposal: pi,
                         data: IDEX.encodeFunctionData("setFee", [h.from, h.to, h.fee]) });
                     if (others.length) alsoImproves.push(`${label} ${have} -> ${h.fee}: also applies to ${others.map((x) => x.symbols).join("; ")}`);
                 }
             } else if (dex.kind === "cl") {
                 const have = Number(decode<any>(IDEX, "tickSpacing", cur[k++]) ?? 0);
                 if (have !== h.tickSpacing) {
-                    ops.push({ kind: "setTickSpacing", to: dex.address, what: `${label} ${have} -> ${h.tickSpacing}`,
+                    ops.push({ kind: "setTickSpacing", to: dex.address, what: `${label} ${have} -> ${h.tickSpacing}`, proposal: pi,
                         data: IDEX.encodeFunctionData("setTickSpacing", [h.from, h.to, h.tickSpacing]) });
                     if (others.length) alsoImproves.push(`${label} ${have} -> ${h.tickSpacing}: also applies to ${others.map((x) => x.symbols).join("; ")}`);
                 }
@@ -175,14 +195,14 @@ async function main() {
                 if (haveStable !== !!h.stable || normFactory(haveFactory) !== normFactory(h.factory ?? ZERO)) {
                     // keep whatever factory the dex already names when it resolves the same
                     const factory = normFactory(haveFactory) === normFactory(h.factory ?? ZERO) ? haveFactory : (h.factory ?? ZERO);
-                    ops.push({ kind: "pairSetup", to: dex.address, what: `${label} stable ${haveStable} -> ${!!h.stable}`,
+                    ops.push({ kind: "pairSetup", to: dex.address, what: `${label} stable ${haveStable} -> ${!!h.stable}`, proposal: pi,
                         data: IDEX.encodeFunctionData("pairSetup", [h.from, h.to, !!h.stable, factory]) });
                     if (others.length) alsoImproves.push(`${label} stable ${haveStable} -> ${!!h.stable}: also applies to ${others.map((x) => x.symbols).join("; ")}`);
                 }
             }
         }
         ops.push({
-            kind: "setPath", to: m.registry, what: `${pr.proposed.symbols} [${dex.name}]`,
+            kind: "setPath", to: m.registry, what: `${pr.proposed.symbols} [${dex.name}]`, proposal: pi,
             data: IREGISTRY.encodeFunctionData("setPath", [dex.hex, pr.proposed.path]),
         });
     }
@@ -212,21 +232,41 @@ async function main() {
     }
 
     console.log(`\nsending as ${senderAddress}`);
-    for (const [i, o] of ops.entries()) {
-        const tx = await sender.sendTransaction({ to: o.to, data: o.data });
-        const rcpt = await tx.wait();
-        console.log(`  ${i + 1}/${ops.length} ${o.kind} ${o.what} -> ${rcpt.transactionHash}`);
+    const failed: { proposal: number; op: Op; error: string }[] = [];
+    let sent = 0;
+    for (const [pi, { pr }] of keep.entries()) {
+        // a proposal's pair config has to land before the path that depends on
+        // it, so a failure part way through skips the rest of that proposal
+        let ok = true;
+        for (const o of ops.filter((x) => x.proposal === pi)) {
+            try {
+                const tx = await sendTx(sender, { to: o.to, data: o.data });
+                const rcpt = await tx.wait();
+                console.log(`  ${++sent}/${ops.length} ${o.kind} ${o.what} -> ${rcpt.transactionHash}`);
+            } catch (e: any) {
+                ok = false;
+                failed.push({ proposal: pi, op: o, error: e?.shortMessage ?? e?.reason ?? String(e?.message ?? e).split("\n")[0] });
+                console.log(`  !! ${o.kind} ${o.what} FAILED: ${failed[failed.length - 1].error}`);
+                console.log(`     skipping the rest of ${pr.proposed.symbols}`);
+                break;
+            }
+        }
+        if (!ok) continue;
+        // record each proposal as it lands, so an interrupted run is not lost
+        const entry = m.paths.find((x) => lc(x.sellToken) === lc(pr.sellToken) && lc(x.buyToken) === lc(pr.buyToken));
+        if (entry) {
+            entry.dex = pr.proposed.dex;
+            entry.path = pr.proposed.path;
+            entry.symbols = pr.proposed.path.map(sym).join(" > ");
+        }
+        saveManifest(m);
     }
 
-    // the manifest is the record of intent, so move it with the chain
-    for (const { pr } of keep) {
-        const entry = m.paths.find((x) => lc(x.sellToken) === lc(pr.sellToken) && lc(x.buyToken) === lc(pr.buyToken));
-        if (!entry) continue;
-        entry.dex = pr.proposed.dex;
-        entry.path = pr.proposed.path;
-        entry.symbols = pr.proposed.path.map(sym).join(" > ");
+    if (failed.length) {
+        console.log(`\n${failed.length} transaction(s) failed; ${keep.length - new Set(failed.map((f) => f.proposal)).size} of ${keep.length} proposal(s) applied.`);
+        console.log("Re-run to retry: setPath is idempotent and applied proposals are already in the manifest.");
     }
-    saveManifest(m);
+
     console.log("\nmanifest updated — run `yarn registry:audit` to confirm");
 }
 

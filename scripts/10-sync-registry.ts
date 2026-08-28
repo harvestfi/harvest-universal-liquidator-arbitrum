@@ -1,6 +1,6 @@
 import {
     Call, IREGISTRY, Manifest, ZERO, decode, isZeroHex, lc, loadManifest,
-    multicall, provider, readChainPaths, signer,
+    multicall, provider, readChainPaths, sendTx, signer,
 } from "./utils/registry";
 
 // Dry run by default. SYNC_EXECUTE=1 sends the transactions.
@@ -105,7 +105,7 @@ async function main() {
 
     console.log(`\nsending as ${senderAddress}`);
     for (const [i, o] of ops.entries()) {
-        const tx = await sender.sendTransaction({ to: m.registry, data: o.data });
+        const tx = await sendTx(sender, { to: m.registry, data: o.data });
         const rcpt = await tx.wait();
         console.log(`  ${i + 1}/${ops.length} ${o.kind} ${o.what} -> ${rcpt.transactionHash}`);
     }
