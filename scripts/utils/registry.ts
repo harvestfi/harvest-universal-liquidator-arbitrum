@@ -24,6 +24,7 @@ export const QUOTE_CHUNK = 8;
 export type DexKind =
     | "uniV3"     // uniswap v3 style, uint24 fee per pair
     | "cl"        // slipstream style, int24 tickSpacing per pair
+    | "algebra"   // algebra style, dynamic fee so no per-pair tier and no fee in the path
     | "solidly"   // aerodrome style, (stable, factory) per pair
     | "univ2"     // constant product router, no per-pair config
     | "curve"
@@ -126,6 +127,22 @@ export const IAERO_ROUTER = new utils.Interface([
 
 export const IBVAULT = new utils.Interface([
     "function getPoolTokens(bytes32) view returns (address[], uint256[], uint256)",
+    "function queryBatchSwap(uint8 kind, tuple(bytes32 poolId, uint256 assetInIndex, uint256 assetOutIndex, uint256 amount, bytes userData)[] swaps, address[] assets, tuple(address sender, bool fromInternalBalance, address recipient, bool toInternalBalance) funds) returns (int256[])",
+]);
+
+export const ICURVE_POOL = new utils.Interface([
+    "function get_dy(int128,int128,uint256) view returns (uint256)",
+    "function coins(uint256) view returns (address)",
+]);
+
+// Curve's newer pools index with uint256 rather than int128.
+export const ICURVE_POOL_U = new utils.Interface([
+    "function get_dy(uint256,uint256,uint256) view returns (uint256)",
+]);
+
+export const IALGEBRA = new utils.Interface([
+    "function poolByPair(address,address) view returns (address)",
+    "function quoteExactInput(bytes,uint256) returns (uint256 amountOut, uint16[] fees)",
 ]);
 
 export const IQUOTER = new utils.Interface([
@@ -274,6 +291,8 @@ export interface ProposalHop {
     tickSpacing?: number;
     stable?: boolean;
     factory?: string;
+    /** balancer: the pool id the quote used */
+    poolId?: string;
 }
 
 export interface Proposal {
@@ -302,6 +321,10 @@ export interface Route {
     stable?: boolean[];
     pools?: string[];
     factories?: string[];
+    /** balancer: the pool id per hop */
+    poolIds?: string[];
+    /** curve: the [i, j] coin indices per hop */
+    curveIdx?: number[][];
     label: string;
 }
 
@@ -324,6 +347,21 @@ export function buildQuote(r: Route, amountIn: BigNumber): Call | undefined {
         const path = encodePath(r.tokens, tiers, d.kind === "uniV3" ? "uint24" : "int24");
         return { target: d.quoter, data: IQUOTER.encodeFunctionData("quoteExactInput", [path, amountIn]) };
     }
+    if (d.kind === "algebra") {
+        // dynamic fees, so the path is just the tokens with nothing between them
+        if (!d.quoter) return undefined;
+        return { target: d.quoter, data: IALGEBRA.encodeFunctionData("quoteExactInput", [utils.solidityPack(r.tokens.map(() => "address"), r.tokens), amountIn]) };
+    }
+    if (d.kind === "balancer") {
+        // GIVEN_IN chains hops by giving only the first step an amount
+        if (!d.vault || !r.poolIds?.length) return undefined;
+        const swaps = r.poolIds.map((poolId, i) => ({
+            poolId, assetInIndex: i, assetOutIndex: i + 1,
+            amount: i === 0 ? amountIn : 0, userData: "0x",
+        }));
+        const funds = { sender: ZERO, fromInternalBalance: false, recipient: ZERO, toInternalBalance: false };
+        return { target: d.vault, data: IBVAULT.encodeFunctionData("queryBatchSwap", [0, swaps, r.tokens, funds]) };
+    }
     if (d.kind === "univ2") {
         if (!d.router) return undefined;
         return { target: d.router, data: IV2ROUTER.encodeFunctionData("getAmountsOut", [amountIn, r.tokens]) };
@@ -338,9 +376,74 @@ export function buildQuote(r: Route, amountIn: BigNumber): Call | undefined {
     return undefined;
 }
 
+/** Read each curve pool's coin ordering, needed before any get_dy call. */
+export async function curveCoinIndex(p: providers.Provider, pools: string[]): Promise<Map<string, Map<string, number>>> {
+    const uniq = [...new Set(pools.filter((x) => x && !isZeroHex(x)))];
+    const calls: Call[] = [];
+    for (const pool of uniq) for (let k = 0; k < 8; k++)
+        calls.push({ target: pool, data: ICURVE_POOL.encodeFunctionData("coins", [k]) });
+    const res = await multicall(p, calls);
+    const out = new Map<string, Map<string, number>>();
+    uniq.forEach((pool, pi) => {
+        const m = new Map<string, number>();
+        for (let k = 0; k < 8; k++) {
+            const c = decode<string>(ICURVE_POOL, "coins", res[pi * 8 + k]);
+            if (!c || isZeroHex(c)) break;
+            m.set(lc(c), k);
+        }
+        if (m.size) out.set(lc(pool), m);
+    });
+    return out;
+}
+
+/**
+ * Curve prices one pool at a time, so a multi-hop route is walked hop by hop
+ * with each hop's output feeding the next. Returns the final amount per job,
+ * zero where any hop could not be priced.
+ */
+export async function quoteCurve(
+    p: providers.Provider,
+    jobs: { route: Route; amount: BigNumber }[],
+    coinIdx: Map<string, Map<string, number>>,
+): Promise<BigNumber[]> {
+    const amounts = jobs.map((j) => j.amount);
+    const maxHops = Math.max(0, ...jobs.map((j) => j.route.tokens.length - 1));
+    for (let h = 0; h < maxHops; h++) {
+        const calls: Call[] = [];
+        const idx: number[] = [];
+        jobs.forEach((j, i) => {
+            if (h >= j.route.tokens.length - 1 || amounts[i].isZero()) return;
+            const pool = j.route.pools?.[h] ? lc(j.route.pools[h]) : undefined;
+            const map = pool ? coinIdx.get(pool) : undefined;
+            const from = map?.get(lc(j.route.tokens[h]));
+            const to = map?.get(lc(j.route.tokens[h + 1]));
+            if (from === undefined || to === undefined) { amounts[i] = BigNumber.from(0); return; }
+            idx.push(i);
+            // stableswap indexes with int128, newer crypto pools with uint256
+            calls.push({ target: pool!, data: ICURVE_POOL.encodeFunctionData("get_dy", [from, to, amounts[i]]) });
+            calls.push({ target: pool!, data: ICURVE_POOL_U.encodeFunctionData("get_dy", [from, to, amounts[i]]) });
+        });
+        if (!calls.length) break;
+        const res = await multicall(p, calls, QUOTE_CHUNK);
+        idx.forEach((i, k) => {
+            amounts[i] = decode<BigNumber>(ICURVE_POOL, "get_dy", res[k * 2])
+                ?? decode<BigNumber>(ICURVE_POOL_U, "get_dy", res[k * 2 + 1])
+                ?? BigNumber.from(0);
+        });
+    }
+    return amounts;
+}
+
 export function readQuote(r: Route, res: Res): BigNumber | undefined {
     if (!alive(res)) return undefined;
     if (r.dex.kind === "uniV3" || r.dex.kind === "cl") return decode<BigNumber>(IQUOTER, "quoteExactInput", res);
+    if (r.dex.kind === "algebra") return decode<BigNumber>(IALGEBRA, "quoteExactInput", res);
+    if (r.dex.kind === "balancer") {
+        // deltas are signed: positive is paid in, negative is received
+        const deltas = decode<BigNumber[]>(IBVAULT, "queryBatchSwap", res);
+        const last = deltas?.[deltas.length - 1];
+        return last?.isNegative() ? last.mul(-1) : undefined;
+    }
     const amts = decode<BigNumber[]>(r.dex.kind === "solidly" ? IAERO_ROUTER : IV2ROUTER, "getAmountsOut", res);
     return amts?.[amts.length - 1];
 }
