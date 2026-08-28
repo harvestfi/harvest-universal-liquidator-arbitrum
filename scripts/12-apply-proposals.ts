@@ -5,7 +5,7 @@ import { utils } from "ethers";
 
 import {
     Call, DexEntry, IDEX, IREGISTRY, Manifest, PROPOSALS, ProposalFile, Route, ZERO,
-    buildQuote, decode, lc, loadManifest, multicall, provider, readQuote, saveManifest, signer,
+    buildQuote, curveCoinIndex, decode, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, signer,
 } from "./utils/registry";
 
 const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view returns (address)"]);
@@ -49,6 +49,7 @@ async function main() {
     } else {
         const calls: Call[] = [];
         const meta: { idx: number; which: "cur" | "new"; route: Route; size: BigNumber }[] = [];
+        const curveJobs: { idx: number; which: "cur" | "new"; route: Route; amount: BigNumber }[] = [];
         for (const { pr, i } of chosen) {
             const size = BigNumber.from(file.sizes[lc(pr.sellToken)] ?? "0");
             if (size.isZero()) continue;
@@ -58,11 +59,14 @@ async function main() {
             const curRoute = await routeFromChain(p, cur, pr.current.path.map(lc));
             const newRoute: Route = {
                 dex: nxt, tokens: pr.proposed.path.map(lc), label: pr.proposed.symbols,
+                poolIds: pr.proposed.hops.map((h) => h.poolId ?? ""),
+                pools: pr.proposed.hops.map((h) => h.pool ?? ZERO),
                 tiers: pr.proposed.hops.map((h) => h.fee ?? h.tickSpacing ?? 0),
                 stable: pr.proposed.hops.map((h) => !!h.stable),
                 factories: pr.proposed.hops.map((h) => h.factory ?? ZERO),
             };
             for (const [which, route] of [["cur", curRoute], ["new", newRoute]] as const) {
+                if (route.dex.kind === "curve") { curveJobs.push({ idx: i, which, route, amount: size }); continue; }
                 const c = buildQuote(route, size);
                 if (!c) continue;
                 meta.push({ idx: i, which, route, size });
@@ -77,6 +81,16 @@ async function main() {
             if (q.which === "cur") e.cur = amt; else e.nxt = amt;
             now.set(q.idx, e);
         });
+        if (curveJobs.length) {
+            const coinIdx = await curveCoinIndex(p, curveJobs.flatMap((j) => j.route.pools ?? []));
+            const amts = await quoteCurve(p, curveJobs.map((j) => ({ route: j.route, amount: j.amount })), coinIdx);
+            curveJobs.forEach((j, k) => {
+                const e = now.get(j.idx) ?? {};
+                if (j.which === "cur") e.cur = amts[k]; else e.nxt = amts[k];
+                now.set(j.idx, e);
+            });
+        }
+
         for (const c of chosen) {
             const e = now.get(c.i);
             if (!e?.cur || !e.nxt || e.cur.isZero()) {
@@ -218,13 +232,14 @@ async function main() {
 
 /** Rebuild a registered route with whatever params the dex currently holds. */
 async function routeFromChain(p: any, dex: DexEntry, tokens: string[]): Promise<Route> {
-    const r: Route = { dex, tokens, tiers: [], stable: [], factories: [], label: dex.name };
-    if (dex.kind === "univ2") return r;
+    const r: Route = { dex, tokens, tiers: [], stable: [], factories: [], poolIds: [], pools: [], label: dex.name };
+    if (dex.kind === "univ2" || dex.kind === "algebra") return r;
     const calls: Call[] = [];
     for (let i = 0; i < tokens.length - 1; i++) {
         const a = tokens[i], b = tokens[i + 1];
         if (dex.kind === "uniV3") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("pairFee", [a, b]) });
         else if (dex.kind === "cl") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("tickSpacing", [a, b]) });
+        else if (dex.kind === "balancer" || dex.kind === "curve") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("pool", [a, b]) });
         else {
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("stable", [a, b]) });
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [a, b]) });
@@ -235,6 +250,8 @@ async function routeFromChain(p: any, dex: DexEntry, tokens: string[]): Promise<
     for (let i = 0; i < tokens.length - 1; i++) {
         if (dex.kind === "uniV3") r.tiers[i] = Number(decode<any>(IDEX, "pairFee", res[k++]) ?? dex.defaultFee ?? 0);
         else if (dex.kind === "cl") r.tiers[i] = Number(decode<any>(IDEX, "tickSpacing", res[k++]) ?? 0);
+        else if (dex.kind === "balancer") r.poolIds![i] = res[k++].data;
+        else if (dex.kind === "curve") r.pools![i] = lc(decode<string>(IDEX, "pool", res[k++]) ?? ZERO);
         else {
             r.stable![i] = decode<boolean>(IDEX, "stable", res[k++]) ?? false;
             r.factories![i] = decode<string>(IDEX, "factory", res[k++]) ?? ZERO;

@@ -3,9 +3,9 @@ import { BigNumber, utils } from "ethers";
 import fs from "fs";
 
 import {
-    Call, DexEntry, IAERO_ROUTER, ICLFACTORY, IDEX, IERC20, IFACTORY, Manifest, PROPOSALS,
+    Call, DexEntry, IAERO_ROUTER, IALGEBRA, IBVAULT, ICLFACTORY, IDEX, IERC20, IFACTORY, Manifest, PROPOSALS,
     Proposal, ProposalFile, ProposalHop, QUOTE_CHUNK, Route, ZERO, alive, buildQuote,
-    decode, isZeroHex, lc, loadManifest, multicall, provider, readQuote,
+    curveCoinIndex, decode, isZeroHex, lc, loadManifest, multicall, provider, quoteCurve, readQuote,
 } from "./utils/registry";
 
 // PROPOSE_USD      value of the test swap in USD (default 1000)
@@ -19,7 +19,7 @@ const VERBOSE = process.env.PROPOSE_VERBOSE === "1";
 
 const IPOOL = new utils.Interface(["function factory() view returns (address)"]);
 
-interface HopOption { pool: string; tier: number; stable?: boolean; depth: BigNumber }
+interface HopOption { pool: string; tier: number; stable?: boolean; depth: BigNumber; poolId?: string; idx?: number[] }
 
 function toUnits(x: number, dec: number): BigNumber {
     if (!isFinite(x) || x <= 0) return BigNumber.from(0);
@@ -36,7 +36,8 @@ function pick(options: Map<string, HopOption[]>, dex: DexEntry, shape: string[],
     }
     return {
         dex, tokens: shape, tiers: picks.map((o) => o.tier), stable: picks.map((o) => !!o.stable),
-        pools: picks.map((o) => o.pool), label: `${dex.name} ${shape.map(sym).join(">")}`,
+        pools: picks.map((o) => o.pool), poolIds: picks.map((o) => o.poolId ?? ""),
+        curveIdx: picks.map((o) => o.idx ?? []), label: `${dex.name} ${shape.map(sym).join(">")}`,
     };
 }
 
@@ -52,7 +53,9 @@ async function main() {
     const clDexes = m.dexes.filter((d) => d.kind === "cl");
     const tsRes = await multicall(p, clDexes.map((d) => ({ target: d.poolFactory!, data: ICLFACTORY.encodeFunctionData("tickSpacings") })));
     clDexes.forEach((d, i) => { d.tiers = d.tiers ?? (decode<number[]>(ICLFACTORY, "tickSpacings", tsRes[i]) ?? []).map(Number); });
-    const candidates = m.dexes.filter((d) => ["uniV3", "cl", "univ2", "solidly"].includes(d.kind));
+    // balancer and curve can only be offered where the dex already has a pool
+    // configured for the hop --- neither exposes a lookup from a token pair.
+    const candidates = m.dexes.filter((d) => ["uniV3", "cl", "univ2", "solidly", "algebra", "balancer", "curve"].includes(d.kind));
 
     const tokenList = Object.keys(m.tokens).map(lc);
     const decRes = await multicall(p, tokenList.map((t) => ({ target: t, data: IERC20.encodeFunctionData("decimals") })));
@@ -109,6 +112,12 @@ async function main() {
         } else if (dex.kind === "univ2") {
             probeMap.push({ key: k, tier: 0, idx: probe.length });
             probe.push({ target: dex.poolFactory!, data: IFACTORY.encodeFunctionData("getPair", [a, b]) });
+        } else if (dex.kind === "algebra") {
+            probeMap.push({ key: k, tier: 0, idx: probe.length });
+            probe.push({ target: dex.poolFactory!, data: IALGEBRA.encodeFunctionData("poolByPair", [a, b]) });
+        } else if (dex.kind === "balancer" || dex.kind === "curve") {
+            probeMap.push({ key: k, tier: 0, idx: probe.length });
+            probe.push({ target: dex.address, data: IDEX.encodeFunctionData("pool", [a, b]) });
         } else {
             for (const stable of [false, true]) {
                 probeMap.push({ key: k, tier: 0, stable, idx: probe.length });
@@ -120,10 +129,21 @@ async function main() {
     const probed = await multicall(p, probe);
 
     const found = probeMap
-        .map((pm) => ({ ...pm, pool: lc(decode<string>(IFACTORY, "getPair", probed[pm.idx]) ?? ZERO) }))
-        .filter((f) => !isZeroHex(f.pool));
+        .map((pm) => {
+            const kind = hopSet.get(pm.key)!.dex.kind;
+            if (kind === "balancer") {
+                // a pool id, not an address: keep it as the id and resolve the
+                // pool address separately for the liveness probe
+                const id = probed[pm.idx].data;
+                return { ...pm, pool: ZERO, poolId: alive(probed[pm.idx]) && !isZeroHex(id) ? id : undefined };
+            }
+            return { ...pm, pool: lc(decode<string>(IFACTORY, "getPair", probed[pm.idx]) ?? ZERO), poolId: undefined as string | undefined };
+        })
+        .filter((f) => (f.poolId ? true : !isZeroHex(f.pool)));
     // a solidly pool address is computed, not looked up, so it may not exist
-    const codeRes = await multicall(p, found.map((f) => ({ target: f.pool, data: IPOOL.encodeFunctionData("factory") })));
+    const codeRes = await multicall(p, found.map((f) => f.poolId
+        ? { target: hopSet.get(f.key)!.dex.vault!, data: IBVAULT.encodeFunctionData("getPoolTokens", [f.poolId]) }
+        : { target: f.pool, data: IPOOL.encodeFunctionData("factory") }));
     const live = found.filter((_, i) => alive(codeRes[i]));
     const depthRes = await multicall(p, live.map((f) => ({
         target: hopSet.get(f.key)!.a, data: IERC20.encodeFunctionData("balanceOf", [f.pool]),
@@ -134,11 +154,18 @@ async function main() {
         const depth = decode<BigNumber>(IERC20, "balanceOf", depthRes[i]) ?? BigNumber.from(0);
         if (depth.isZero()) return;
         const arr = options.get(f.key) ?? [];
-        arr.push({ pool: f.pool, tier: f.tier, stable: f.stable, depth });
+        arr.push({ pool: f.pool, tier: f.tier, stable: f.stable, depth, poolId: f.poolId });
         options.set(f.key, arr);
     });
     for (const arr of options.values()) arr.sort((x, y) => (y.depth.gt(x.depth) ? 1 : -1));
     console.log(`${options.size} of ${hopKeys.length} candidate hops have a live pool`);
+
+    // ---------- curve coin indices ----------
+    // A curve pool is quoted per hop with get_dy(i, j, dx), so each pool's coin
+    // ordering has to be read before anything can be priced through it.
+    const coinIdx = await curveCoinIndex(p, [...options.entries()]
+        .filter(([k]) => byName.get(k.split("|")[0])?.kind === "curve")
+        .flatMap(([, v]) => v.map((o) => o.pool)));
 
     // ---------- phase 2: price every sell token in USD ----------
     // A test swap should be the size a liquidation actually is, so it is set in
@@ -234,14 +261,15 @@ async function main() {
     // ---------- phase 3: quote every candidate at the same dollar size ----------
     const quotes: Call[] = [];
     const quoteMeta: { pair: string; route: Route; incumbent: boolean; idx: number }[] = [];
-    const incTiers = new Map<string, { tiers: number[]; stable: boolean[]; factory: string[] }>();
+    const curveMeta: { pair: string; route: Route; incumbent: boolean; amount: BigNumber }[] = [];
+    const incTiers = new Map<string, { tiers: number[]; stable: boolean[]; factory: string[]; poolIds: string[]; pools: string[] }>();
 
     // registered params for the incumbent route, read straight off the dex contract
     const incCalls: Call[] = [];
     const incMap: { pair: string; hop: number; kind: string; idx: number }[] = [];
     for (const x of paths) {
         const d = byName.get(x.dex);
-        if (!d || !["uniV3", "cl", "solidly"].includes(d.kind)) continue;
+        if (!d || !["uniV3", "cl", "solidly", "balancer", "curve"].includes(d.kind)) continue;
         const pair = `${lc(x.sellToken)}|${lc(x.buyToken)}`;
         for (let h = 0; h < x.path.length - 1; h++) {
             const a = lc(x.path[h]), b = lc(x.path[h + 1]);
@@ -250,6 +278,10 @@ async function main() {
                 incCalls.push({ target: d.address, data: IDEX.encodeFunctionData("stable", [a, b]) });
                 incMap.push({ pair, hop: h, kind: "factory", idx: incCalls.length });
                 incCalls.push({ target: d.address, data: IDEX.encodeFunctionData("factory", [a, b]) });
+            } else if (d.kind === "balancer" || d.kind === "curve") {
+                // balancer keeps a pool id, curve a pool address
+                incMap.push({ pair, hop: h, kind: d.kind === "curve" ? "curvePool" : "pool", idx: incCalls.length });
+                incCalls.push({ target: d.address, data: IDEX.encodeFunctionData("pool", [a, b]) });
             } else {
                 const fn = d.kind === "uniV3" ? "pairFee" : "tickSpacing";
                 incMap.push({ pair, hop: h, kind: fn, idx: incCalls.length });
@@ -259,8 +291,10 @@ async function main() {
     }
     const incRes = await multicall(p, incCalls);
     for (const im of incMap) {
-        const cur = incTiers.get(im.pair) ?? { tiers: [], stable: [], factory: [] };
-        if (im.kind === "stable") cur.stable[im.hop] = decode<boolean>(IDEX, "stable", incRes[im.idx]) ?? false;
+        const cur = incTiers.get(im.pair) ?? { tiers: [], stable: [], factory: [], poolIds: [], pools: [] };
+        if (im.kind === "pool") cur.poolIds[im.hop] = incRes[im.idx].data;
+        else if (im.kind === "curvePool") cur.pools[im.hop] = lc(decode<string>(IDEX, "pool", incRes[im.idx]) ?? ZERO);
+        else if (im.kind === "stable") cur.stable[im.hop] = decode<boolean>(IDEX, "stable", incRes[im.idx]) ?? false;
         else if (im.kind === "factory") cur.factory[im.hop] = decode<string>(IDEX, "factory", incRes[im.idx]) ?? ZERO;
         else cur.tiers[im.hop] = Number(decode<any>(IDEX, im.kind, incRes[im.idx]) ?? 0);
         incTiers.set(im.pair, cur);
@@ -272,21 +306,26 @@ async function main() {
         if (!notional) continue;
 
         const inc = byName.get(x.dex);
-        if (inc && ["uniV3", "cl", "univ2", "solidly"].includes(inc.kind)) {
+        if (inc && ["uniV3", "cl", "univ2", "solidly", "algebra", "balancer", "curve"].includes(inc.kind)) {
             const t = incTiers.get(pair);
             const route: Route = {
                 dex: inc, tokens: x.path.map(lc), tiers: t?.tiers ?? [], stable: t?.stable ?? [],
-                label: `${x.dex} (registered)`,
+                poolIds: t?.poolIds ?? [], pools: t?.pools ?? [], label: `${x.dex} (registered)`,
             };
             route.factories = t?.factory;
-            const call = buildQuote(route, notional);
-            if (call) { quoteMeta.push({ pair, route, incumbent: true, idx: quotes.length }); quotes.push(call); }
+            if (inc.kind === "curve") {
+                curveMeta.push({ pair, route, incumbent: true, amount: notional });
+            } else {
+                const call = buildQuote(route, notional);
+                if (call) { quoteMeta.push({ pair, route, incumbent: true, idx: quotes.length }); quotes.push(call); }
+            }
         }
 
         for (const d of candidates) for (const shape of shapes.get(pair)!) {
             if (d.name === x.dex && shape.join(",") === x.path.map(lc).join(",")) continue;
             const r = pick(options, d, shape, sym);
             if (!r) continue;
+            if (d.kind === "curve") { curveMeta.push({ pair, route: r, incumbent: false, amount: notional }); continue; }
             const call = buildQuote(r, notional);
             if (!call) continue;
             quoteMeta.push({ pair, route: r, incumbent: false, idx: quotes.length });
@@ -297,7 +336,18 @@ async function main() {
     console.log(`quoting ${quotes.length} routes for ${notionals.size} priced tokens...`);
     const quoted = await multicall(p, quotes, QUOTE_CHUNK);
 
+    const curveAmounts = await quoteCurve(p, curveMeta.map((q) => ({ route: q.route, amount: q.amount })), coinIdx);
+    const curveOut = new Map<number, BigNumber>();
+    curveAmounts.forEach((v, i) => { if (!v.isZero()) curveOut.set(i, v); });
+
     const out = new Map<string, { route: Route; incumbent: boolean; amount: BigNumber }[]>();
+    curveMeta.forEach((q, i) => {
+        const amount = curveOut.get(i);
+        if (!amount || amount.isZero()) return;
+        const arr = out.get(q.pair) ?? [];
+        arr.push({ route: q.route, incumbent: q.incumbent, amount });
+        out.set(q.pair, arr);
+    });
     quoteMeta.forEach((q) => {
         const amount = readQuote(q.route, quoted[q.idx]);
         if (!amount || amount.isZero()) return;
@@ -344,7 +394,9 @@ async function main() {
             const r: Route = pr.best.route;
             const hops: ProposalHop[] = r.tokens.slice(0, -1).map((from, i) => {
                 const hop: ProposalHop = { from, to: r.tokens[i + 1], pool: r.pools?.[i] ?? ZERO };
-                if (r.dex.kind === "uniV3") hop.fee = r.tiers[i];
+                if (r.dex.kind === "balancer") hop.poolId = r.poolIds?.[i];
+                else if (r.dex.kind === "curve") hop.pool = r.pools?.[i] ?? ZERO;
+                else if (r.dex.kind === "uniV3") hop.fee = r.tiers[i];
                 else if (r.dex.kind === "cl") hop.tickSpacing = r.tiers[i];
                 else if (r.dex.kind === "solidly") { hop.stable = r.stable?.[i] ?? false; hop.factory = r.factories?.[i] ?? ZERO; }
                 return hop;
@@ -367,7 +419,7 @@ async function main() {
     if (unpriced.length)
         console.log(`\n${unpriced.length} sell token(s) could not be priced against ${sym(anchor)}: ${unpriced.map(sym).join(", ")}`);
     if (unquotable.length)
-        console.log(`${unquotable.length} pair(s) had no quotable registered route (curve/balancer/erc4626 are not quoted here)`);
+        console.log(`${unquotable.length} pair(s) had no quotable registered route`);
 }
 
 main().catch((error) => {

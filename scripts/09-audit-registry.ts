@@ -10,7 +10,7 @@ const deployments: any = (() => {
     }
 })();
 import {
-    Call, DexEntry, IAERO_ROUTER, IBALANCER_DEX, IBVAULT, IDEX, IERC20, IFACTORY, IREGISTRY,
+    Call, DexEntry, IAERO_ROUTER, IALGEBRA, IBALANCER_DEX, IBVAULT, IDEX, IERC20, IFACTORY, IREGISTRY,
     Manifest, Res, ZERO, decode, key, lc, loadManifest, multicall, provider, readChainPaths,
 } from "./utils/registry";
 
@@ -156,6 +156,8 @@ async function main() {
             case "solidly":  return { target: t, data: IDEX.encodeFunctionData("stable", [h.a, h.b]) };
             case "curve":
             case "balancer": return { target: t, data: IDEX.encodeFunctionData("pool", [h.a, h.b]) };
+            // algebra prices dynamically, so there is no per-pair config to read
+            case "algebra":  return { target: t, data: IDEX.encodeFunctionData("owner") };
             default:         return { target: t, data: IDEX.encodeFunctionData("router") };
         }
     });
@@ -174,7 +176,7 @@ async function main() {
 
     const resolveCalls: Call[] = hops.map((h, i) => {
         const r = params[i];
-        if (h.dex.kind !== "univ2" && !readable(r)) unreadable.add(h);
+        if (!["univ2", "algebra"].includes(h.dex.kind) && !readable(r)) unreadable.add(h);
         switch (h.dex.kind) {
             case "cl": {
                 const ts = decode<number>(IDEX, "tickSpacing", r) ?? 0;
@@ -190,6 +192,9 @@ async function main() {
             }
             case "univ2":
                 return { target: h.dex.poolFactory!, data: IFACTORY.encodeFunctionData("getPair", [h.a, h.b]) };
+            case "algebra":
+                h.note = "dynamic fee";
+                return { target: h.dex.poolFactory!, data: IALGEBRA.encodeFunctionData("poolByPair", [h.a, h.b]) };
             case "solidly": {
                 const stable = decode<boolean>(IDEX, "stable", r) ?? false;
                 // factory(0) is legitimate: the Aerodrome router falls back to its default factory.
