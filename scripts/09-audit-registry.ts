@@ -61,6 +61,14 @@ async function main() {
     if (owner !== lc(m.owner))
         report("ERROR", "wiring", `registry owner is ${owner}, manifest says ${lc(m.owner)}`);
 
+    // Auditing one chain's manifest against another chain's RPC would compare
+    // unrelated state and report nonsense, so refuse before doing any of it.
+    const chainId = (await p.getNetwork()).chainId;
+    if (m.chainId && chainId !== m.chainId)
+        report("ERROR", "wiring", `connected to chain ${chainId} but the manifest is for ${m.chainId} (${m.network})`);
+    else if (!m.chainId)
+        report("WARN", "wiring", "manifest has no chainId; re-seed to record it");
+
     // ---------- dexes ----------
     const addrs = await multicall(p, chainDexes.map((h) => ({
         target: m.registry, data: IREGISTRY.encodeFunctionData("dexesInfo", [h]),

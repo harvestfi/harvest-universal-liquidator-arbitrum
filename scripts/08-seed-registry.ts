@@ -12,14 +12,14 @@ const deployments: any = (() => {
 })();
 
 import {
-    Call, DexEntry, IERC20, IREGISTRY, Manifest, PathEntry,
+    CHAIN_NAMES, Call, DexEntry, IERC20, IREGISTRY, Manifest, PathEntry,
     ZERO, decode, key, lc, loadManifest, multicall, provider, saveManifest, MANIFEST,
 } from "./utils/registry";
 
 // The Foundry repos have no deployments.json, so the addresses can be given
 // directly. Everything else is read from chain either way.
-const REGISTRY = process.env.REGISTRY_ADDRESS ?? deployments.UniversalLiquidatorRegistry;
-const UL = process.env.UL_ADDRESS ?? deployments.UniversalLiquidator;
+let REGISTRY: string = process.env.REGISTRY_ADDRESS ?? deployments.UniversalLiquidatorRegistry;
+let UL: string = process.env.UL_ADDRESS ?? deployments.UniversalLiquidator;
 
 // Options come from the environment because `hardhat run` rejects unknown CLI
 // flags: SEED_TOKENS=<json array file>, SEED_FROM_BLOCK=<block>,
@@ -86,6 +86,10 @@ async function tokenUniverse(existing: Manifest | undefined, intermediates: stri
 async function main() {
     const p = provider();
     const existing = fs.existsSync(MANIFEST) ? loadManifest() : undefined;
+    // Re-seeding should not need the addresses handed over again.
+    REGISTRY = REGISTRY ?? existing?.registry;
+    UL = UL ?? existing?.universalLiquidator;
+    if (!REGISTRY) throw new Error("no registry address: set REGISTRY_ADDRESS, or seed once so the manifest records it");
 
     const head = await multicall(p, [
         { target: REGISTRY, data: IREGISTRY.encodeFunctionData("getAllDexes") },
@@ -172,8 +176,10 @@ async function main() {
     paths.forEach((p_) => { p_.symbols = p_.path.map((t) => symbols[t] ?? t.slice(0, 8)).join(" > "); });
     paths.sort((x, y) => x.symbols.localeCompare(y.symbols));
 
+    const chainId = (await p.getNetwork()).chainId;
     const manifest: Manifest = {
-        network: "base",
+        network: process.env.REGISTRY_NETWORK ?? existing?.network ?? CHAIN_NAMES[chainId] ?? String(chainId),
+        chainId,
         registry: REGISTRY,
         universalLiquidator: UL,
         owner,

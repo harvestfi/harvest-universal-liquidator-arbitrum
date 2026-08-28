@@ -53,8 +53,14 @@ export interface PathEntry {
     path: string[];
 }
 
+export const CHAIN_NAMES: Record<number, string> = {
+    1: "ethereum", 10: "optimism", 137: "polygon", 8453: "base", 42161: "arbitrum",
+};
+
 export interface Manifest {
     network: string;
+    /** read from the chain, so a manifest cannot silently describe another one */
+    chainId: number;
     registry: string;
     universalLiquidator: string;
     owner: string;

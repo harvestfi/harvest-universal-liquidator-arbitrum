@@ -1,9 +1,10 @@
 {
-    "network": "base",
+    "network": "arbitrum",
+    "chainId": 42161,
     "registry": "0xbcE9d31FfA2c96E11cEbEAa021136a83A3575D95",
     "universalLiquidator": "0x5f513cA572e7eD10487cEF2b0636C07eA9b82AD8",
     "owner": "0x6a74649aCFD7822ae8Fb78463a9f2192752E5Aa2",
-    "generatedAtBlock": 499268368,
+    "generatedAtBlock": 499276862,
     "intermediateTokens": [
         "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
         "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
@@ -95,7 +96,7 @@
         "0xf19547f9ed24aa66b03c3a552d181ae334fbb8db": "LODE",
         "0xf97f4df75117a78c1a5a0dbb814af92458539fb4": "LINK",
         "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a": "GMX",
-        "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": "USD\u20ae0",
+        "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": "USD₮0",
         "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8": "USDC"
     },
     "minLiquidity": {
@@ -379,7 +380,7 @@
         {
             "sellToken": "0x61e030a56d33e8260fdd81f03b162a79fe3449cd",
             "buyToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-            "symbols": "FLUID > WETH > USD\u20ae0",
+            "symbols": "FLUID > WETH > USD₮0",
             "dex": "uniV3",
             "path": [
                 "0x61e030a56d33e8260fdd81f03b162a79fe3449cd",
@@ -496,7 +497,7 @@
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-            "symbols": "GRAIL > USDC > USD\u20ae0",
+            "symbols": "GRAIL > USDC > USD₮0",
             "dex": "camelot",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
@@ -789,7 +790,7 @@
         {
             "sellToken": "0xf19547f9ed24aa66b03c3a552d181ae334fbb8db",
             "buyToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-            "symbols": "LODE > WETH > USD\u20ae0",
+            "symbols": "LODE > WETH > USD₮0",
             "dex": "camelotV3",
             "path": [
                 "0xf19547f9ed24aa66b03c3a552d181ae334fbb8db",
@@ -1052,7 +1053,7 @@
         {
             "sellToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
             "buyToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-            "symbols": "USD\u20ae0 > USDC > WETH",
+            "symbols": "USD₮0 > USDC > WETH",
             "dex": "camelotV3",
             "path": [
                 "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
@@ -1499,7 +1500,7 @@
         {
             "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "buyToken": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-            "symbols": "WETH > USD\u20ae0",
+            "symbols": "WETH > USD₮0",
             "dex": "uniV3",
             "path": [
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
@@ -1509,7 +1510,7 @@
         {
             "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "buyToken": "0x7b5eb3940021ec0e8e463d5dbb4b7b09a89ddf96",
-            "symbols": "WETH > USD\u20ae0 > WOM",
+            "symbols": "WETH > USD₮0 > WOM",
             "dex": "camelot",
             "path": [
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
@@ -1656,7 +1657,7 @@
         {
             "sellToken": "0x7b5eb3940021ec0e8e463d5dbb4b7b09a89ddf96",
             "buyToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-            "symbols": "WOM > USD\u20ae0 > WETH",
+            "symbols": "WOM > USD₮0 > WETH",
             "dex": "camelot",
             "path": [
                 "0x7b5eb3940021ec0e8e463d5dbb4b7b09a89ddf96",
