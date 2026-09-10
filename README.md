@@ -126,6 +126,13 @@ PROPOSE_NEW_PAIRS=wanted.txt yarn registry:routes
 PROPOSE_NEW_TOKENS=0xAbC… yarn registry:routes
 ```
 
+A pair with no entry of its own may still be reachable: `getPath` falls back to
+the first intermediate token with a path on both sides and swaps in two legs,
+and since each leg is itself multi-hop, that can cross more pools than any one
+entry. The proposer reads what the registry does today and weighs a direct entry
+against it, reporting rather than proposing one that would not improve on it
+(the per-leg shares are multiplied, so it is approximate).
+
 Candidates are quoted exactly as for a registered pair; what differs is the
 accept test. With no incumbent to beat, a route is judged on value kept: it has
 to retain `PROPOSE_MIN_RETENTION` (default 90%) of the input, because an
