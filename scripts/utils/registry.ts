@@ -354,6 +354,8 @@ export interface Proposal {
     sellToken: string;
     buyToken: string;
     gainBps: number;
+    /** share of input value the proposed route returns; absent when the buy token could not be priced */
+    kept?: number;
     current: { dex: string; path: string[]; symbols: string; out: string };
     proposed: { dex: string; kind: DexKind; path: string[]; symbols: string; out: string; hops: ProposalHop[] };
 }

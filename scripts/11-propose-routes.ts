@@ -55,6 +55,18 @@ const NEW_PAIRS = entries(process.env.PROPOSE_NEW_PAIRS).map((e) => {
 
 const IPOOL = new utils.Interface(["function factory() view returns (address)"]);
 
+/** The vault's balance of one token in a balancer pool, from a getPoolTokens result. */
+function decodeVaultBalance(res: { success: boolean; data: string }, token: string): BigNumber | undefined {
+    if (!res.success || res.data === "0x") return undefined;
+    try {
+        const [tokens, balances] = IBVAULT.decodeFunctionResult("getPoolTokens", res.data) as [string[], BigNumber[]];
+        const at = tokens.findIndex((t) => lc(t) === lc(token));
+        return at < 0 ? undefined : balances[at];
+    } catch {
+        return undefined;
+    }
+}
+
 interface HopOption { pool: string; tier: number; stable?: boolean; depth: BigNumber; poolId?: string; idx?: number[] }
 
 function toUnits(x: number, dec: number): BigNumber {
@@ -256,14 +268,26 @@ async function main() {
     const codeRes = await multicall(p, found.map((f) => f.poolId
         ? { target: hopSet.get(f.key)!.dex.vault!, data: IBVAULT.encodeFunctionData("getPoolTokens", [f.poolId]) }
         : { target: f.pool, data: IPOOL.encodeFunctionData("factory") }));
-    const live = found.filter((_, i) => alive(codeRes[i]));
-    const depthRes = await multicall(p, live.map((f) => ({
+    // keep the probe index, so a balancer row can read its balances back out of
+    // the liveness call instead of being measured a second time
+    const live = found.map((f, i) => ({ f, probe: i })).filter(({ probe }) => alive(codeRes[probe]));
+    const depthRes = await multicall(p, live.map(({ f }) => ({
         target: hopSet.get(f.key)!.a, data: IERC20.encodeFunctionData("balanceOf", [f.pool]),
     })));
 
     const options = new Map<string, HopOption[]>();
-    live.forEach((f, i) => {
-        const depth = decode<BigNumber>(IERC20, "balanceOf", depthRes[i]) ?? BigNumber.from(0);
+    live.forEach(({ f, probe }, i) => {
+        // A balancer pool holds nothing itself --- the vault holds it, keyed by
+        // pool id --- so balanceOf(pool) is zero for every balancer hop and
+        // would drop the entire dex from consideration. getPoolTokens was
+        // already read to prove the pool exists; take the depth from there.
+        let depth: BigNumber;
+        if (f.poolId) {
+            const bal = decodeVaultBalance(codeRes[probe], hopSet.get(f.key)!.a);
+            depth = bal ?? BigNumber.from(0);
+        } else {
+            depth = decode<BigNumber>(IERC20, "balanceOf", depthRes[i]) ?? BigNumber.from(0);
+        }
         if (depth.isZero()) return;
         const arr = options.get(f.key) ?? [];
         arr.push({ pool: f.pool, tier: f.tier, stable: f.stable, depth, poolId: f.poolId });
@@ -472,7 +496,6 @@ async function main() {
     const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean; fresh?: boolean;
         kept?: number; viaLegs?: number; shape?: string }[] = [];
     const unquotable: string[] = [];
-    const unroutable: string[] = [];
     const lossy: string[] = [];
     const unvalued: string[] = [];
     const redundant: string[] = [];
@@ -505,8 +528,7 @@ async function main() {
                 const viaLegs = perLeg && perLeg.every((x) => x !== undefined)
                     ? perLeg.reduce((a, b) => a! * b!, 1) : undefined;
                 const shape = legs?.map((l) => l.map(sym).join(">")).join(" then ");
-                if (!best || best.incumbent) { unroutable.push(pair); continue; }
-                if (kept !== undefined && viaLegs !== undefined) {
+                    if (kept !== undefined && viaLegs !== undefined) {
                     // there is something to beat, so beat it by the usual margin
                     if (kept > viaLegs * (1 + MIN_BPS / 10_000))
                         proposals.push({ pair, gain: NEWROUTE, inc: BigNumber.from(0), best, fresh: true, kept, viaLegs, shape });
@@ -586,6 +608,7 @@ async function main() {
             });
             return {
                 sellToken: s0, buyToken: b0, gainBps: pr.fresh ? -2 : pr.broken ? -1 : pr.gain,
+                ...(pr.kept === undefined ? {} : { kept: pr.kept }),
                 current: { dex: x.dex, path: x.path.map(lc), symbols: x.symbols, out: pr.inc.toString() },
                 proposed: {
                     dex: r.dex.name, kind: r.dex.kind, path: r.tokens,
@@ -601,8 +624,17 @@ async function main() {
 
     if (unpriced.length)
         console.log(`\n${unpriced.length} sell token(s) could not be priced against ${sym(anchor)}: ${unpriced.map(sym).join(", ")}`);
-    if (unquotable.length)
-        console.log(`${unquotable.length} pair(s) had no quotable registered route`);
+    if (unquotable.length) {
+        const asked = unquotable.filter((k) => wanted.has(k));
+        console.log(`${unquotable.length} pair(s) had no quotable registered route`
+            + (asked.length ? `, including ${asked.length} you asked about:` : ""));
+        // a pair nobody asked about is noise; one that was requested is an answer owed
+        for (const k of asked) {
+            const x = paths.find((q) => `${lc(q.sellToken)}|${lc(q.buyToken)}` === k);
+            console.log(`  - ${sym(k.split("|")[0])} > ${sym(k.split("|")[1])}: registered on `
+                + `${x?.dex ?? "?"}, which this tooling cannot quote, so nothing was compared`);
+        }
+    }
     if (redundant.length) {
         console.log(`\n${redundant.length} requested route(s) would not improve on what getPath already does:`);
         for (const r of redundant) console.log(`  - ${r}`);
@@ -618,8 +650,20 @@ async function main() {
             `(floor ${(MIN_RETENTION * 100).toFixed(0)}%, raise with PROPOSE_MIN_RETENTION):`);
         for (const l of lossy) console.log(`  - ${l}`);
     }
-    if (unroutable.length)
-        console.log(`${unroutable.length} requested pair(s) had no routable path: ${unroutable.map((k) => `${sym(k.split("|")[0])} > ${sym(k.split("|")[1])}`).join(", ")}`);
+    // A pair only reaches `out` once some candidate quoted. One that never got
+    // that far is invisible to every bucket above, so ask for it back here ---
+    // an unanswered request has to say so, or it reads as "nothing to do".
+    const silent = [...wanted].filter((k) => !out.has(k)
+        && !proposals.some((pr) => pr.pair === k) && !routed.includes(k));
+    if (silent.length) {
+        console.log(`\n${silent.length} requested route(s) produced no candidate at all:`);
+        for (const k of silent) {
+            const [sell, buy] = k.split("|");
+            const why = unpriced.includes(sell) ? `${sym(sell)} could not be priced`
+                : `no dex the tooling can quote has a pool for every hop`;
+            console.log(`  - ${sym(sell)} > ${sym(buy)}: ${why}`);
+        }
+    }
 }
 
 main().catch((error) => {
