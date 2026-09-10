@@ -113,6 +113,18 @@ async function main() {
 
         for (const c of chosen) {
             const e = now.get(c.i);
+            // A proposal recorded as replacing a route that does not execute
+            // (gainBps -1) has no incumbent quote by definition. Skipping those
+            // would refuse to fix exactly the routes that most need fixing.
+            if (c.pr.gainBps === -1) {
+                if (e?.nxt?.gt(0)) {
+                    console.log(`  ok   ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: registered route still does not execute, replacement quotes`);
+                    keep.push(c);
+                } else {
+                    console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: replacement does not quote either`);
+                }
+                continue;
+            }
             if (!e?.cur || !e.nxt || e.cur.isZero()) {
                 console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: could not re-quote`);
                 continue;

@@ -19,6 +19,7 @@ const STRICT = process.env.AUDIT_STRICT === "1";
 
 const IPOOL = new utils.Interface(["function factory() view returns (address)"]);
 const ICURVE = new utils.Interface(["function params(address,address) view returns (uint256[5])"]);
+const ICLPOOL = new utils.Interface(["function liquidity() view returns (uint128)"]);
 const IUL = new utils.Interface(["function pathRegistry() view returns (address)"]);
 
 type Sev = "ERROR" | "WARN";
@@ -260,6 +261,13 @@ async function main() {
             balOf.push({ hop: h, token: "", idx: balCalls.length });
             balCalls.push({ target: h.pool!, data: IPOOL.encodeFunctionData("factory") });
         }
+        // A concentrated-liquidity pool can hold plenty of both tokens while
+        // every position sits out of range. liquidity() is zero then and any
+        // swap reverts, so the token balances say nothing on their own.
+        if (["uniV3", "cl", "algebra"].includes(h.dex.kind)) {
+            balOf.push({ hop: h, token: "@liquidity", idx: balCalls.length });
+            balCalls.push({ target: h.pool!, data: ICLPOOL.encodeFunctionData("liquidity") });
+        }
     });
     const bals = await multicall(p, balCalls);
 
@@ -277,6 +285,11 @@ async function main() {
                 seen.add(hop);
                 bad(hop, `resolved pool ${hop.pool} has no code (${hop.note})`);
             }
+            continue;
+        }
+        if (token === "@liquidity") {
+            const liq = decode<BigNumber>(ICLPOOL, "liquidity", bals[idx]);
+            if (liq?.isZero()) bad(hop, `pool ${hop.pool} has no active liquidity (${hop.note})`);
             continue;
         }
         const raw = decode<BigNumber>(IERC20, "balanceOf", bals[idx]);

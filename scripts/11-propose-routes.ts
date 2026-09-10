@@ -16,6 +16,13 @@ const USD = Number(process.env.PROPOSE_USD ?? 1000);
 const MIN_BPS = Number(process.env.PROPOSE_MIN_BPS ?? 50);
 const LIMIT = process.env.PROPOSE_LIMIT ? Number(process.env.PROPOSE_LIMIT) : undefined;
 const VERBOSE = process.env.PROPOSE_VERBOSE === "1";
+// sorts above every real percentage, so broken routes lead the report
+const BROKEN = Number.MAX_SAFE_INTEGER;
+// Kinds whose pools are discovered from a factory. For these, a quote that
+// fails means the pool genuinely cannot swap. curve and balancer depend on
+// per-pair config, and erc4626/aave/traderJoe have no quoter wired at all, so a
+// failure there says nothing about the route.
+const FACTORY_KINDS = ["uniV3", "cl", "algebra", "univ2", "solidly"];
 
 const IPOOL = new utils.Interface(["function factory() view returns (address)"]);
 
@@ -357,12 +364,22 @@ async function main() {
     });
 
     // ---------- report ----------
-    const proposals: { pair: string; gain: number; inc: BigNumber; best: any }[] = [];
+    const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean }[] = [];
     const unquotable: string[] = [];
     for (const [pair, list] of out) {
         const inc = list.find((r) => r.incumbent);
         const best = list.reduce((a, b) => (b.amount.gt(a.amount) ? b : a));
-        if (!inc) { unquotable.push(pair); continue; }
+        if (!inc) {
+            // The registered route did not quote. Only call that broken when the
+            // dex resolves its pools from a factory --- there a failed quote means
+            // the pool cannot swap, and anything that does quote beats reverting.
+            const x = paths.find((q) => `${lc(q.sellToken)}|${lc(q.buyToken)}` === pair);
+            const kind = x ? byName.get(x.dex)?.kind : undefined;
+            if (best && !best.incumbent && kind && FACTORY_KINDS.includes(kind))
+                proposals.push({ pair, gain: BROKEN, inc: BigNumber.from(0), best, broken: true });
+            else unquotable.push(pair);
+            continue;
+        }
         if (best.incumbent) continue;
         const gain = best.amount.sub(inc.amount).mul(10_000).div(inc.amount.isZero() ? 1 : inc.amount).toNumber();
         if (gain >= MIN_BPS) proposals.push({ pair, gain, inc: inc.amount, best });
@@ -376,7 +393,9 @@ async function main() {
             console.log(`   ${fmt(r.amount, b0).padStart(16)} ${sym(b0).padEnd(10)} ${r.route.label}${r.incumbent ? "  <- registered" : ""}`);
     }
 
-    console.log(`\n=== ${proposals.length} route(s) beaten by an alternative on a $${USD} swap (>= ${MIN_BPS} bps) ===\n`);
+    const brokenCount = proposals.filter((x) => x.broken).length;
+    console.log(`\n=== ${proposals.length} route(s) to change on a $${USD} swap`
+        + (brokenCount ? `, ${brokenCount} of them because the registered route reverts` : ` (>= ${MIN_BPS} bps)`) + " ===\n");
     for (const pr of proposals) {
         const [s, b] = pr.pair.split("|");
         const x = paths.find((q) => lc(q.sellToken) === s && lc(q.buyToken) === b)!;
@@ -402,7 +421,7 @@ async function main() {
                 return hop;
             });
             return {
-                sellToken: s0, buyToken: b0, gainBps: pr.gain,
+                sellToken: s0, buyToken: b0, gainBps: pr.broken ? -1 : pr.gain,
                 current: { dex: x.dex, path: x.path.map(lc), symbols: x.symbols, out: pr.inc.toString() },
                 proposed: {
                     dex: r.dex.name, kind: r.dex.kind, path: r.tokens,
