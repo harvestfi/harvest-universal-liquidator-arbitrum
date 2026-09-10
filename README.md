@@ -113,19 +113,26 @@ merely worse: there is no percentage to compare, so any alternative that does
 quote is proposed for it. That is what catches a pool that has drained or whose
 liquidity has moved out of range.
 
-A token not in the registry yet has no route to compare, so it has to be named.
-`PROPOSE_NEW_TOKENS` takes addresses — inline, or a file to scan for them — and
-looks for a route from each to every intermediate token, quoted the same way.
-Acceptance is by value kept rather than by beating an incumbent: a new route has
-to retain `PROPOSE_MIN_RETENTION` (default 90%) of the input value, because an
-illiquid token quotes something through almost any pool and a route that gives up
-half the value is worse than having none. `registry:apply` sends these like any
-other proposal and adds the token and its paths to the manifest.
+A pair with nothing registered has no route to compare against, so it has to be
+asked for. `PROPOSE_NEW_PAIRS` takes `SELL>BUY` entries (`->` works too),
+comma, space or newline separated, inline or in a file, and either side may be
+an address or a symbol the manifest already names. `PROPOSE_NEW_TOKENS` is the
+shorthand for a new reward token: one address expands to that token against
+every intermediate, which is all the registry needs.
 
 ```shell
-PROPOSE_NEW_TOKENS=0xAbC…,0xDeF… yarn registry:routes
-PROPOSE_NEW_TOKENS=new-vaults.txt yarn registry:routes   # every 0x… in the file
+PROPOSE_NEW_PAIRS="0xAbC…>cbBTC, WETH -> 0xDeF…" yarn registry:routes
+PROPOSE_NEW_PAIRS=wanted.txt yarn registry:routes
+PROPOSE_NEW_TOKENS=0xAbC… yarn registry:routes
 ```
+
+Candidates are quoted exactly as for a registered pair; what differs is the
+accept test. With no incumbent to beat, a route is judged on value kept: it has
+to retain `PROPOSE_MIN_RETENTION` (default 90%) of the input, because an
+illiquid token quotes something through almost any pool and a route that gives
+up half the value is worse than having none. A pair that *is* registered is
+compared the ordinary way instead. `registry:apply` sends these like any other
+proposal and adds the tokens and paths to the manifest.
 
 Dexes marked `kind: "unknown"` on Arbitrum are skipped by both the hop checks and
 the proposer — they do not fit any resolution shape the tooling knows.
