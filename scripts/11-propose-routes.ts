@@ -18,11 +18,26 @@ const LIMIT = process.env.PROPOSE_LIMIT ? Number(process.env.PROPOSE_LIMIT) : un
 const VERBOSE = process.env.PROPOSE_VERBOSE === "1";
 // sorts above every real percentage, so broken routes lead the report
 const BROKEN = Number.MAX_SAFE_INTEGER;
+// below BROKEN so failing routes still lead, above ordinary gains
+const NEWROUTE = Number.MAX_SAFE_INTEGER - 1;
+// A new route has no incumbent to beat, so nothing stops a lossy one from being
+// "best". Require it to return most of the value put in.
+const MIN_RETENTION = Number(process.env.PROPOSE_MIN_RETENTION ?? 0.9);
 // Kinds whose pools are discovered from a factory. For these, a quote that
 // fails means the pool genuinely cannot swap. curve and balancer depend on
 // per-pair config, and erc4626/aave/traderJoe have no quoter wired at all, so a
 // failure there says nothing about the route.
 const FACTORY_KINDS = ["uniV3", "cl", "algebra", "univ2", "solidly"];
+// PROPOSE_NEW_TOKENS: comma separated addresses, or a file holding a JSON array.
+// Each becomes a candidate route into every intermediate token, which is all the
+// registry needs --- getPath reaches everything else from there.
+const NEW_TOKENS = (() => {
+    const raw = process.env.PROPOSE_NEW_TOKENS;
+    if (!raw) return [] as string[];
+    const text = fs.existsSync(raw) ? fs.readFileSync(raw, "utf8") : raw;
+    const found = text.match(/0x[0-9a-fA-F]{40}/g) ?? [];
+    return [...new Set(found.map((x) => x.toLowerCase()))];
+})();
 
 const IPOOL = new utils.Interface(["function factory() view returns (address)"]);
 
@@ -75,6 +90,32 @@ async function main() {
     };
 
     // ---------- shapes: routing candidates, plus a way to price each sell token ----------
+    const known = new Set(m.paths.map((x) => lc(x.sellToken)));
+    const fresh = NEW_TOKENS.filter((t) => !known.has(t) && t !== anchor);
+    if (NEW_TOKENS.length) {
+        const already = NEW_TOKENS.filter((t) => known.has(t));
+        console.log(`${NEW_TOKENS.length} token(s) given, ${fresh.length} not yet in the registry`
+            + (already.length ? `, ${already.length} already routed` : ""));
+    }
+    // symbols and decimals for tokens the manifest has never seen
+    if (fresh.length) {
+        const meta = await multicall(p, fresh.flatMap((t) => [
+            { target: t, data: IERC20.encodeFunctionData("symbol") },
+            { target: t, data: IERC20.encodeFunctionData("decimals") },
+        ]));
+        fresh.forEach((t, i) => {
+            const sy = decode<string>(IERC20, "symbol", meta[i * 2]);
+            m.tokens[t] = sy ?? t.slice(0, 8);
+            DEC.set(t, Number(decode<any>(IERC20, "decimals", meta[i * 2 + 1]) ?? 18));
+        });
+        for (const t of fresh) for (const i of m.intermediateTokens.map(lc)) {
+            if (i === t) continue;
+            paths.push({ sellToken: t, buyToken: i, dex: "", path: [t, i],
+                symbols: `${m.tokens[t]} > ${m.tokens[lc(i)] ?? i.slice(0, 8)}` } as any);
+        }
+    }
+    const isNew = (pair: string) => fresh.includes(pair.split("|")[0]);
+
     const shapes = new Map<string, string[][]>();
     for (const x of paths) {
         const list: string[][] = [[lc(x.sellToken), lc(x.buyToken)]];
@@ -364,8 +405,10 @@ async function main() {
     });
 
     // ---------- report ----------
-    const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean }[] = [];
+    const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean; fresh?: boolean; kept?: number }[] = [];
     const unquotable: string[] = [];
+    const unroutable: string[] = [];
+    const lossy: string[] = [];
     for (const [pair, list] of out) {
         const inc = list.find((r) => r.incumbent);
         const best = list.reduce((a, b) => (b.amount.gt(a.amount) ? b : a));
@@ -373,6 +416,22 @@ async function main() {
             // The registered route did not quote. Only call that broken when the
             // dex resolves its pools from a factory --- there a failed quote means
             // the pool cannot swap, and anything that does quote beats reverting.
+            if (isNew(pair)) {
+                const target = pair.split("|")[1];
+                const price = usdPrice.get(target);
+                const outUsd = best && price
+                    ? Number(utils.formatUnits(best.amount, dec(target))) * price
+                    : undefined;
+                const kept = outUsd === undefined ? undefined : outUsd / USD;
+                if (best && !best.incumbent && (kept === undefined || kept >= MIN_RETENTION)) {
+                    proposals.push({ pair, gain: NEWROUTE, inc: BigNumber.from(0), best, fresh: true, kept });
+                } else if (best && kept !== undefined) {
+                    lossy.push(`${sym(pair.split("|")[0])} > ${sym(target)} keeps only ${(kept * 100).toFixed(1)}% of value`);
+                } else {
+                    unroutable.push(pair);
+                }
+                continue;
+            }
             const x = paths.find((q) => `${lc(q.sellToken)}|${lc(q.buyToken)}` === pair);
             const kind = x ? byName.get(x.dex)?.kind : undefined;
             if (best && !best.incumbent && kind && FACTORY_KINDS.includes(kind))
@@ -394,13 +453,23 @@ async function main() {
     }
 
     const brokenCount = proposals.filter((x) => x.broken).length;
-    console.log(`\n=== ${proposals.length} route(s) to change on a $${USD} swap`
-        + (brokenCount ? `, ${brokenCount} of them because the registered route reverts` : ` (>= ${MIN_BPS} bps)`) + " ===\n");
+    const freshCount = proposals.filter((x) => x.fresh).length;
+    const notes = [
+        brokenCount ? `${brokenCount} because the registered route reverts` : "",
+        freshCount ? `${freshCount} for tokens not yet in the registry` : "",
+    ].filter(Boolean);
+    console.log(`\n=== ${proposals.length} route(s) to set on a $${USD} swap`
+        + (notes.length ? `, ${notes.join(" and ")}` : ` (>= ${MIN_BPS} bps)`) + " ===\n");
     for (const pr of proposals) {
         const [s, b] = pr.pair.split("|");
         const x = paths.find((q) => lc(q.sellToken) === s && lc(q.buyToken) === b)!;
-        console.log(`${sym(s)} > ${sym(b)}   +${(pr.gain / 100).toFixed(2)}%   on ${fmt(notionals.get(s)!, s)} ${sym(s)}`);
-        console.log(`   now  ${x.symbols} [${x.dex}]  ->  ${fmt(pr.inc, b)} ${sym(b)}`);
+        // BROKEN and NEWROUTE only exist to sort; they are not percentages
+        const headline = pr.fresh
+            ? `no route registered` + (pr.kept === undefined ? "" : `, keeps ${(pr.kept * 100).toFixed(1)}% of value`)
+            : pr.broken ? "registered route does not quote"
+                : `+${(pr.gain / 100).toFixed(2)}%`;
+        console.log(`${sym(s)} > ${sym(b)}   ${headline}   on ${fmt(notionals.get(s)!, s)} ${sym(s)}`);
+        if (!pr.fresh) console.log(`   now  ${x.symbols} [${x.dex}]  ->  ${fmt(pr.inc, b)} ${sym(b)}`);
         console.log(`   alt  ${pr.best.route.label}  ->  ${fmt(pr.best.amount, b)} ${sym(b)}`);
     }
     const file: ProposalFile = {
@@ -421,7 +490,7 @@ async function main() {
                 return hop;
             });
             return {
-                sellToken: s0, buyToken: b0, gainBps: pr.broken ? -1 : pr.gain,
+                sellToken: s0, buyToken: b0, gainBps: pr.fresh ? -2 : pr.broken ? -1 : pr.gain,
                 current: { dex: x.dex, path: x.path.map(lc), symbols: x.symbols, out: pr.inc.toString() },
                 proposed: {
                     dex: r.dex.name, kind: r.dex.kind, path: r.tokens,
@@ -439,6 +508,13 @@ async function main() {
         console.log(`\n${unpriced.length} sell token(s) could not be priced against ${sym(anchor)}: ${unpriced.map(sym).join(", ")}`);
     if (unquotable.length)
         console.log(`${unquotable.length} pair(s) had no quotable registered route`);
+    if (lossy.length) {
+        console.log(`\n${lossy.length} new-token route(s) rejected for losing too much value ` +
+            `(floor ${(MIN_RETENTION * 100).toFixed(0)}%, raise with PROPOSE_MIN_RETENTION):`);
+        for (const l of lossy) console.log(`  - ${l}`);
+    }
+    if (unroutable.length)
+        console.log(`${unroutable.length} new-token pair(s) had no routable path: ${unroutable.map((k) => `${sym(k.split("|")[0])} > ${sym(k.split("|")[1])}`).join(", ")}`);
 }
 
 main().catch((error) => {
