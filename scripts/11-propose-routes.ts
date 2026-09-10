@@ -3,7 +3,7 @@ import { BigNumber, utils } from "ethers";
 import fs from "fs";
 
 import {
-    Call, DexEntry, IAERO_ROUTER, IALGEBRA, IBVAULT, ICLFACTORY, IDEX, IERC20, IFACTORY, Manifest, PROPOSALS,
+    Call, DexEntry, IAERO_ROUTER, IALGEBRA, IBVAULT, ICLFACTORY, IDEX, IERC20, IFACTORY, IREGISTRY, Manifest, PROPOSALS,
     Proposal, ProposalFile, ProposalHop, QUOTE_CHUNK, Route, ZERO, alive, buildQuote,
     curveCoinIndex, decode, isZeroHex, lc, loadManifest, multicall, provider, quoteCurve, readQuote,
 } from "./utils/registry";
@@ -28,16 +28,30 @@ const MIN_RETENTION = Number(process.env.PROPOSE_MIN_RETENTION ?? 0.9);
 // per-pair config, and erc4626/aave/traderJoe have no quoter wired at all, so a
 // failure there says nothing about the route.
 const FACTORY_KINDS = ["uniV3", "cl", "algebra", "univ2", "solidly"];
-// PROPOSE_NEW_TOKENS: comma separated addresses, or a file holding a JSON array.
-// Each becomes a candidate route into every intermediate token, which is all the
-// registry needs --- getPath reaches everything else from there.
-const NEW_TOKENS = (() => {
-    const raw = process.env.PROPOSE_NEW_TOKENS;
+// Two ways to ask for a route the registry may not have.
+//
+// PROPOSE_NEW_TOKENS names a token and offers it a route into every
+// intermediate, which is what a new reward token needs --- getPath reaches
+// everything else from there. PROPOSE_NEW_PAIRS names both ends, for a route
+// between two specific tokens.
+//
+// Either accepts a comma or whitespace separated list, or a path to a file
+// holding one, and either side may be an address or a symbol the manifest
+// already names.
+const entries = (raw?: string) => {
     if (!raw) return [] as string[];
     const text = fs.existsSync(raw) ? fs.readFileSync(raw, "utf8") : raw;
-    const found = text.match(/0x[0-9a-fA-F]{40}/g) ?? [];
-    return [...new Set(found.map((x) => x.toLowerCase()))];
-})();
+    // an arrow binds its two sides together before the list is split apart,
+    // so "A > B, C -> D" survives being written the way it reads
+    return text.replace(/\s*-*>\s*/g, ">").split(/[,\s]+/)
+        .map((x) => x.replace(/[[\]"']/g, "").trim()).filter(Boolean);
+};
+const NEW_TOKENS = entries(process.env.PROPOSE_NEW_TOKENS);
+const NEW_PAIRS = entries(process.env.PROPOSE_NEW_PAIRS).map((e) => {
+    const sides = e.split(">").map((x) => x.trim()).filter(Boolean);
+    if (sides.length !== 2) throw new Error(`PROPOSE_NEW_PAIRS wants "SELL>BUY" entries, got "${e}"`);
+    return sides as [string, string];
+});
 
 const IPOOL = new utils.Interface(["function factory() view returns (address)"]);
 
@@ -68,7 +82,7 @@ async function main() {
     const m: Manifest = loadManifest();
     const sym = (t: string) => m.tokens[lc(t)] ?? t.slice(0, 8);
     const byName = new Map(m.dexes.map((d) => [d.name, d]));
-    const paths = LIMIT ? m.paths.slice(0, LIMIT) : m.paths;
+    const paths = LIMIT ? m.paths.slice(0, LIMIT) : [...m.paths];
     const anchor = lc(m.usdAnchor);
     const weth = lc(m.intermediateTokens[0]);
 
@@ -90,31 +104,81 @@ async function main() {
     };
 
     // ---------- shapes: routing candidates, plus a way to price each sell token ----------
-    const known = new Set(m.paths.map((x) => lc(x.sellToken)));
-    const fresh = NEW_TOKENS.filter((t) => !known.has(t) && t !== anchor);
-    if (NEW_TOKENS.length) {
-        const already = NEW_TOKENS.filter((t) => known.has(t));
-        console.log(`${NEW_TOKENS.length} token(s) given, ${fresh.length} not yet in the registry`
-            + (already.length ? `, ${already.length} already routed` : ""));
+    // An address is taken as given; a name has to be one the manifest uses, and
+    // has to name one token --- a chain with two "USDC" entries is ambiguous.
+    const resolve = (name: string) => {
+        if (/^0x[0-9a-fA-F]{40}$/.test(name)) return lc(name);
+        const hits = Object.entries(m.tokens).filter(([, s0]) => s0.toLowerCase() === name.toLowerCase());
+        if (!hits.length) throw new Error(`no token called "${name}" in the manifest --- give its address`);
+        if (hits.length > 1) throw new Error(`"${name}" names ${hits.length} tokens (${hits.map(([a]) => a).join(", ")}) --- give an address`);
+        return lc(hits[0][0]);
+    };
+    const requested: [string, string][] = [];
+    for (const t of NEW_TOKENS.map(resolve))
+        for (const i of m.intermediateTokens.map(lc)) if (i !== t) requested.push([t, i]);
+    for (const [a, b] of NEW_PAIRS) requested.push([resolve(a), resolve(b)]);
+
+    const registered = new Set(m.paths.map((x) => `${lc(x.sellToken)}|${lc(x.buyToken)}`));
+    const synthetic = new Set<string>();
+    const routed: string[] = [];
+    const wanted = new Set<string>();
+    for (const [sell, buy] of requested) {
+        const key = `${sell}|${buy}`;
+        if (sell === buy || wanted.has(key)) continue;
+        wanted.add(key);
+        if (registered.has(key)) routed.push(key);
+        else synthetic.add(key);
+    }
+    if (wanted.size) {
+        console.log(`${wanted.size} route(s) requested, ${synthetic.size} with no entry of their own`
+            + (routed.length ? `, ${routed.length} registered and compared as usual` : ""));
     }
     // symbols and decimals for tokens the manifest has never seen
-    if (fresh.length) {
-        const meta = await multicall(p, fresh.flatMap((t) => [
+    const unseen = [...new Set(requested.flat())].filter((t) => !m.tokens[t]);
+    if (unseen.length) {
+        const meta = await multicall(p, unseen.flatMap((t) => [
             { target: t, data: IERC20.encodeFunctionData("symbol") },
             { target: t, data: IERC20.encodeFunctionData("decimals") },
         ]));
-        fresh.forEach((t, i) => {
-            const sy = decode<string>(IERC20, "symbol", meta[i * 2]);
-            m.tokens[t] = sy ?? t.slice(0, 8);
+        unseen.forEach((t, i) => {
+            m.tokens[t] = decode<string>(IERC20, "symbol", meta[i * 2]) ?? t.slice(0, 8);
             DEC.set(t, Number(decode<any>(IERC20, "decimals", meta[i * 2 + 1]) ?? 18));
         });
-        for (const t of fresh) for (const i of m.intermediateTokens.map(lc)) {
-            if (i === t) continue;
-            paths.push({ sellToken: t, buyToken: i, dex: "", path: [t, i],
-                symbols: `${m.tokens[t]} > ${m.tokens[lc(i)] ?? i.slice(0, 8)}` } as any);
+    }
+    for (const key of synthetic) {
+        const [sell, buy] = key.split("|");
+        paths.push({ sellToken: sell, buyToken: buy, dex: "", path: [sell, buy],
+            symbols: `${sym(sell)} > ${sym(buy)}` } as any);
+    }
+    // a pair asked for by name is always answered, even when PROPOSE_LIMIT cut
+    // it out of the list
+    for (const key of routed) {
+        if (paths.some((x) => `${lc(x.sellToken)}|${lc(x.buyToken)}` === key)) continue;
+        const entry = m.paths.find((x) => `${lc(x.sellToken)}|${lc(x.buyToken)}` === key);
+        if (entry) paths.push(entry);
+    }
+    const isNew = (pair: string) => synthetic.has(pair);
+
+    // A pair with no entry of its own is not necessarily unreachable: getPath
+    // falls back to the first intermediate token that has a path on both sides,
+    // and swaps it in two legs. Ask the registry what it does today, so a
+    // proposal can be weighed against that rather than against nothing.
+    const resolved = new Map<string, string[][]>();
+    if (synthetic.size) {
+        const keys = [...synthetic];
+        const res = await multicall(p, keys.map((k) => {
+            const [sell, buy] = k.split("|");
+            return { target: m.registry, data: IREGISTRY.encodeFunctionData("getPath", [sell, buy]) };
+        }));
+        keys.forEach((k, i) => {
+            const legs = decode<any[]>(IREGISTRY, "getPath", res[i]);
+            if (legs?.length) resolved.set(k, legs.map((l: any) => (l.paths as string[]).map(lc)));
+        });
+        if (resolved.size) {
+            console.log(`getPath already resolves ${resolved.size} of those through an intermediate `
+                + `token, so they are weighed against that rather than against nothing`);
         }
     }
-    const isNew = (pair: string) => fresh.includes(pair.split("|")[0]);
 
     const shapes = new Map<string, string[][]>();
     for (const x of paths) {
@@ -126,7 +190,7 @@ async function main() {
     const sellTokens = [...new Set(paths.map((x) => lc(x.sellToken)))];
     // Every token that can be the input side of a hop needs a price, so hop
     // tiers can be compared at the same realistic size wherever they appear.
-    const priceable = [...new Set([...sellTokens, ...tokenList])];
+    const priceable = [...new Set([...sellTokens, ...tokenList, ...requested.flat()])];
     const priceShapes = new Map<string, string[][]>();
     for (const t of priceable) {
         if (t === anchor) continue;
@@ -405,10 +469,13 @@ async function main() {
     });
 
     // ---------- report ----------
-    const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean; fresh?: boolean; kept?: number }[] = [];
+    const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean; fresh?: boolean;
+        kept?: number; viaLegs?: number; shape?: string }[] = [];
     const unquotable: string[] = [];
     const unroutable: string[] = [];
     const lossy: string[] = [];
+    const unvalued: string[] = [];
+    const redundant: string[] = [];
     for (const [pair, list] of out) {
         const inc = list.find((r) => r.incumbent);
         const best = list.reduce((a, b) => (b.amount.gt(a.amount) ? b : a));
@@ -423,12 +490,37 @@ async function main() {
                     ? Number(utils.formatUnits(best.amount, dec(target))) * price
                     : undefined;
                 const kept = outUsd === undefined ? undefined : outUsd / USD;
-                if (best && !best.incumbent && (kept === undefined || kept >= MIN_RETENTION)) {
-                    proposals.push({ pair, gain: NEWROUTE, inc: BigNumber.from(0), best, fresh: true, kept });
-                } else if (best && kept !== undefined) {
-                    lossy.push(`${sym(pair.split("|")[0])} > ${sym(target)} keeps only ${(kept * 100).toFixed(1)}% of value`);
+                // What the registry manages today, if it manages anything. Each
+                // leg is a registered path, so its quote is already in hand ---
+                // multiplying the shares each leg keeps approximates the pair,
+                // which is enough to say whether an entry of its own helps.
+                const legs = resolved.get(pair);
+                const perLeg = legs?.map((tokens) => {
+                    const legPair = `${tokens[0]}|${tokens[tokens.length - 1]}`;
+                    const q = out.get(legPair)?.find((r) => r.incumbent);
+                    const legPrice = usdPrice.get(tokens[tokens.length - 1]);
+                    if (!q || !legPrice) return undefined;
+                    return Number(utils.formatUnits(q.amount, dec(tokens[tokens.length - 1]))) * legPrice / USD;
+                });
+                const viaLegs = perLeg && perLeg.every((x) => x !== undefined)
+                    ? perLeg.reduce((a, b) => a! * b!, 1) : undefined;
+                const shape = legs?.map((l) => l.map(sym).join(">")).join(" then ");
+                if (!best || best.incumbent) { unroutable.push(pair); continue; }
+                if (kept !== undefined && viaLegs !== undefined) {
+                    // there is something to beat, so beat it by the usual margin
+                    if (kept > viaLegs * (1 + MIN_BPS / 10_000))
+                        proposals.push({ pair, gain: NEWROUTE, inc: BigNumber.from(0), best, fresh: true, kept, viaLegs, shape });
+                    else
+                        redundant.push(`${sym(pair.split("|")[0])} > ${sym(target)}: a direct entry keeps `
+                            + `${(kept * 100).toFixed(1)}%, the registry already gets ~${(viaLegs * 100).toFixed(1)}% via ${shape}`);
+                    continue;
+                }
+                if (kept === undefined || kept >= MIN_RETENTION) {
+                    proposals.push({ pair, gain: NEWROUTE, inc: BigNumber.from(0), best, fresh: true, kept, shape });
+                    if (kept === undefined) unvalued.push(pair);
                 } else {
-                    unroutable.push(pair);
+                    lossy.push(`${sym(pair.split("|")[0])} > ${sym(target)} keeps only ${(kept * 100).toFixed(1)}% of value`
+                        + (shape ? `, and the registry already routes it via ${shape}` : ""));
                 }
                 continue;
             }
@@ -456,7 +548,7 @@ async function main() {
     const freshCount = proposals.filter((x) => x.fresh).length;
     const notes = [
         brokenCount ? `${brokenCount} because the registered route reverts` : "",
-        freshCount ? `${freshCount} for tokens not yet in the registry` : "",
+        freshCount ? `${freshCount} with no route registered yet` : "",
     ].filter(Boolean);
     console.log(`\n=== ${proposals.length} route(s) to set on a $${USD} swap`
         + (notes.length ? `, ${notes.join(" and ")}` : ` (>= ${MIN_BPS} bps)`) + " ===\n");
@@ -465,10 +557,13 @@ async function main() {
         const x = paths.find((q) => lc(q.sellToken) === s && lc(q.buyToken) === b)!;
         // BROKEN and NEWROUTE only exist to sort; they are not percentages
         const headline = pr.fresh
-            ? `no route registered` + (pr.kept === undefined ? "" : `, keeps ${(pr.kept * 100).toFixed(1)}% of value`)
+            ? (pr.shape ? `no entry of its own` : `no route registered`)
+                + (pr.kept === undefined ? "" : `, keeps ${(pr.kept * 100).toFixed(1)}% of value`)
+                + (pr.viaLegs === undefined ? "" : ` against ~${(pr.viaLegs * 100).toFixed(1)}% today`)
             : pr.broken ? "registered route does not quote"
                 : `+${(pr.gain / 100).toFixed(2)}%`;
         console.log(`${sym(s)} > ${sym(b)}   ${headline}   on ${fmt(notionals.get(s)!, s)} ${sym(s)}`);
+        if (pr.fresh && pr.shape) console.log(`   now  ${pr.shape}  (two legs, resolved by getPath)`);
         if (!pr.fresh) console.log(`   now  ${x.symbols} [${x.dex}]  ->  ${fmt(pr.inc, b)} ${sym(b)}`);
         console.log(`   alt  ${pr.best.route.label}  ->  ${fmt(pr.best.amount, b)} ${sym(b)}`);
     }
@@ -508,13 +603,23 @@ async function main() {
         console.log(`\n${unpriced.length} sell token(s) could not be priced against ${sym(anchor)}: ${unpriced.map(sym).join(", ")}`);
     if (unquotable.length)
         console.log(`${unquotable.length} pair(s) had no quotable registered route`);
+    if (redundant.length) {
+        console.log(`\n${redundant.length} requested route(s) would not improve on what getPath already does:`);
+        for (const r of redundant) console.log(`  - ${r}`);
+        console.log(`  (per-leg shares multiplied, so treat it as approximate)`);
+    }
+    if (unvalued.length) {
+        console.log(`\n${unvalued.length} proposed route(s) could not be checked for value kept, `
+            + `because ${sym(anchor)} is not reachable from the buy token:`);
+        for (const k of unvalued) console.log(`  - ${sym(k.split("|")[0])} > ${sym(k.split("|")[1])}`);
+    }
     if (lossy.length) {
-        console.log(`\n${lossy.length} new-token route(s) rejected for losing too much value ` +
+        console.log(`\n${lossy.length} requested route(s) rejected for losing too much value ` +
             `(floor ${(MIN_RETENTION * 100).toFixed(0)}%, raise with PROPOSE_MIN_RETENTION):`);
         for (const l of lossy) console.log(`  - ${l}`);
     }
     if (unroutable.length)
-        console.log(`${unroutable.length} new-token pair(s) had no routable path: ${unroutable.map((k) => `${sym(k.split("|")[0])} > ${sym(k.split("|")[1])}`).join(", ")}`);
+        console.log(`${unroutable.length} requested pair(s) had no routable path: ${unroutable.map((k) => `${sym(k.split("|")[0])} > ${sym(k.split("|")[1])}`).join(", ")}`);
 }
 
 main().catch((error) => {
