@@ -86,7 +86,10 @@ Errors (exit code 1): the UL points at this registry; every dex resolves to the
 manifest address and none to `address(0)`; intermediate tokens match **in order**
 (`getPath` returns the first match, so order decides routing); every manifest path
 exists on chain with the same dex and token array, and no chain path is missing
-from the manifest; every hop resolves to a pool that is actually deployed.
+from the manifest; every hop resolves to a pool that is actually deployed; and
+no concentrated-liquidity hop sits on a pool with zero active liquidity. That
+last one can hold plenty of both tokens while every position is out of range,
+and it reverts on any swap — a `doHardWork` that reverts, not a bad price.
 
 Warnings: a hop's pool below its `minLiquidity` floor, a pair with no reverse
 path, a UniV3 hop on the default fee (indistinguishable from unset), and any dex
@@ -104,6 +107,25 @@ sliver of its deepest pool into `usdAnchor`.
 first because prices move. A proposal is more than a `setPath`: the dex needs the
 pair config the quote was taken with, so the `setFee` / `setTickSpacing` /
 `pairSetup` calls are emitted before it.
+
+A registered route that does not quote at all is treated as broken rather than
+merely worse: there is no percentage to compare, so any alternative that does
+quote is proposed for it. That is what catches a pool that has drained or whose
+liquidity has moved out of range.
+
+A token not in the registry yet has no route to compare, so it has to be named.
+`PROPOSE_NEW_TOKENS` takes addresses — inline, or a file to scan for them — and
+looks for a route from each to every intermediate token, quoted the same way.
+Acceptance is by value kept rather than by beating an incumbent: a new route has
+to retain `PROPOSE_MIN_RETENTION` (default 90%) of the input value, because an
+illiquid token quotes something through almost any pool and a route that gives up
+half the value is worse than having none. `registry:apply` sends these like any
+other proposal and adds the token and its paths to the manifest.
+
+```shell
+PROPOSE_NEW_TOKENS=0xAbC…,0xDeF… yarn registry:routes
+PROPOSE_NEW_TOKENS=new-vaults.txt yarn registry:routes   # every 0x… in the file
+```
 
 Dexes marked `kind: "unknown"` on Arbitrum are skipped by both the hop checks and
 the proposer — they do not fit any resolution shape the tooling knows.
