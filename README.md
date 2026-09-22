@@ -141,5 +141,23 @@ up half the value is worse than having none. A pair that *is* registered is
 compared the ordinary way instead. `registry:apply` sends these like any other
 proposal and adds the tokens and paths to the manifest.
 
+### Watching it on a schedule
+
+`registry:watch` runs the same checks and speaks up only when something needs
+doing — audit errors, registered routes that no longer quote, and routes better
+by at least `WATCH_MIN_BPS` (default 1%). It holds no key and sends no
+transaction; applying stays manual.
+
+```shell
+WATCH_DRY=1 yarn registry:watch          # print what it would say
+WATCH_MODE=audit yarn registry:watch     # just the breakage check
+```
+
+`.github/workflows/registry-watch.yml` runs the audit daily and adds the route
+check weekly. Breakage is worth knowing the same day; route improvements move
+with liquidity and a percent seen on Tuesday is often gone by Thursday. Add
+`REGISTRY_RPC_URL` plus `WATCH_DISCORD_WEBHOOK`, or `WATCH_TELEGRAM_TOKEN` with
+`WATCH_TELEGRAM_CHAT`, as repository secrets.
+
 Dexes marked `kind: "unknown"` on Arbitrum are skipped by both the hop checks and
 the proposer — they do not fit any resolution shape the tooling knows.
