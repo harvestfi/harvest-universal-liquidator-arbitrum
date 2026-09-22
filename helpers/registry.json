@@ -666,7 +666,7 @@
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0x1622bf67e6e5747b81866fe0b85178a93c7f86e3",
             "symbols": "GRAIL > WETH > UMAMI",
-            "dex": "camelotV3",
+            "dex": "camelot",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
@@ -1157,10 +1157,11 @@
         {
             "sellToken": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
             "buyToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
-            "symbols": "USDC > WBTC",
+            "symbols": "USDC > USDC > WBTC",
             "dex": "uniV3",
             "path": [
                 "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
+                "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
                 "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f"
             ]
         },
