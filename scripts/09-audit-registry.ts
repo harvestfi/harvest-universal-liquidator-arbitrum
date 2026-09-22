@@ -313,12 +313,30 @@ async function main() {
                 `${m.paths[h.pathIdx].symbols} hop${h.i} ${sym(h.a)}/${sym(h.b)} uses fee ${h.dex.defaultFee} — indistinguishable from unset`);
 
     // ---------- output ----------
-    const errors = findings.filter((f) => f.sev === "ERROR");
-    const warns = findings.filter((f) => f.sev === "WARN");
+    // Some findings are real and not going to be fixed --- a path registered on
+    // chain that cannot be unregistered, say, since the registry has no
+    // removePath. Those are declared in the manifest so the audit still shows
+    // them but stops failing on them, and so the decision is reviewable.
+    const accepted = m.accepted ?? [];
+    const used = new Set<number>();
+    const isAccepted = (f: { group: string; msg: string }) => {
+        const at = accepted.findIndex((a) => a.group === f.group && f.msg.includes(a.contains));
+        if (at < 0) return false;
+        used.add(at);
+        return true;
+    };
+    const excused = findings.filter(isAccepted);
+    const live = findings.filter((f) => !excused.includes(f));
+    const errors = live.filter((f) => f.sev === "ERROR");
+    const warns = live.filter((f) => f.sev === "WARN");
+    // An entry that matches nothing has outlived whatever it was hiding, and
+    // silences nothing now --- say so, so it can be taken back out.
+    for (const [i, a] of accepted.entries())
+        if (!used.has(i)) warns.push({ sev: "WARN", group: "stale-accepted", msg: `nothing matches "${a.contains}" any more --- drop it from accepted` });
     console.log(`registry ${m.registry} @ block ${await p.getBlockNumber()}`);
     console.log(`  ${m.dexes.length} dexes | ${m.paths.length} paths | ${hops.length} hops | ${tokens.length} tokens\n`);
     for (const sev of ["ERROR", "WARN"] as Sev[]) {
-        const list = findings.filter((f) => f.sev === sev);
+        const list = (sev === "ERROR" ? errors : warns);
         const groups = [...new Set(list.map((f) => f.group))];
         for (const g of groups) {
             const items = list.filter((f) => f.group === g);
@@ -327,7 +345,16 @@ async function main() {
             if (items.length > 40) console.log(`  ... and ${items.length - 40} more`);
         }
     }
-    console.log(`\n${errors.length} error(s), ${warns.length} warning(s)`);
+    if (excused.length) {
+        console.log(`ACCEPTED (${excused.length})`);
+        for (const f of excused) {
+            const a = accepted.find((x) => x.group === f.group && f.msg.includes(x.contains))!;
+            console.log(`  - ${f.msg}`);
+            console.log(`    accepted${a.since ? ` ${a.since}` : ""}: ${a.reason}`);
+        }
+    }
+    console.log(`\n${errors.length} error(s), ${warns.length} warning(s)`
+        + (excused.length ? `, ${excused.length} accepted` : ""));
     if (errors.length || (STRICT && warns.length)) process.exitCode = 1;
 }
 
