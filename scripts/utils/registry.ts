@@ -81,10 +81,13 @@ export const CHAIN_NAMES: Record<number, string> = {
  * thing rather than a class of them.
  */
 export interface Accepted {
-    /** the finding's group, e.g. "hops" */
-    group: string;
+    /** the finding's group, e.g. "hops"; pair it with contains to excuse one finding */
+    group?: string;
     /** substring the finding's message must contain */
-    contains: string;
+    contains?: string;
+    /** or excuse every finding about a path that sells this token, for a token
+     *  that cannot be liquidated at all and whose paths cannot be withdrawn */
+    sellToken?: string;
     /** why this is tolerable --- required, because a silence with no reason rots */
     reason: string;
     since?: string;

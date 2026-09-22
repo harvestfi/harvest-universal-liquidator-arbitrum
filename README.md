@@ -105,6 +105,11 @@ still errors. Excused findings are still printed under `ACCEPTED` with their
 reason, but do not fail the run, and an entry that stops matching anything is
 reported as `stale-accepted` so it gets cleaned up.
 
+An entry can instead carry a `sellToken`, which excuses every finding about a
+path selling that token — for a token that cannot be liquidated at all, where
+naming each path separately says the same thing repeatedly and goes stale as
+soon as another path is added.
+
 ### Proposing better routes
 
 `registry:routes` quotes every registered route against alternatives on the other

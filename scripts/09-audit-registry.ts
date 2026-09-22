@@ -24,8 +24,9 @@ const ICLPOOL = new utils.Interface(["function liquidity() view returns (uint128
 const IUL = new utils.Interface(["function pathRegistry() view returns (address)"]);
 
 type Sev = "ERROR" | "WARN";
-const findings: { sev: Sev; group: string; msg: string }[] = [];
-const report = (sev: Sev, group: string, msg: string) => findings.push({ sev, group, msg });
+const findings: { sev: Sev; group: string; msg: string; sell?: string }[] = [];
+/** `sell` is the sell token of the path a finding belongs to, where it has one. */
+const report = (sev: Sev, group: string, msg: string, sell?: string) => findings.push({ sev, group, msg, sell });
 
 const isZero = (a?: string) => !a || /^0x0+$/.test(a);
 const units = (v: BigNumber, d: number) => Number(utils.formatUnits(v, d));
@@ -222,9 +223,11 @@ async function main() {
     const resolved = await multicall(p, resolveCalls);
 
     const bad = (h: Hop, why: string) =>
-        report("ERROR", "hops", `${m.paths[h.pathIdx].symbols} [${h.dex.name}] hop${h.i} ${sym(h.a)}/${sym(h.b)}: ${why}`);
+        report("ERROR", "hops", `${m.paths[h.pathIdx].symbols} [${h.dex.name}] hop${h.i} ${sym(h.a)}/${sym(h.b)}: ${why}`,
+            m.paths[h.pathIdx].sellToken);
     const warn = (h: Hop, why: string) =>
-        report("WARN", "thin-tick", `${m.paths[h.pathIdx].symbols} [${h.dex.name}] hop${h.i} ${sym(h.a)}/${sym(h.b)}: ${why}`);
+        report("WARN", "thin-tick", `${m.paths[h.pathIdx].symbols} [${h.dex.name}] hop${h.i} ${sym(h.a)}/${sym(h.b)}: ${why}`,
+            m.paths[h.pathIdx].sellToken);
 
     const balCalls: Call[] = [];
     const balOf: { hop: Hop; token: string; idx: number }[] = [];
@@ -309,7 +312,8 @@ async function main() {
         const have = units(raw, DEC.get(token) ?? 18);
         if (have < Number(floor))
             report("WARN", "liquidity",
-                `${m.paths[hop.pathIdx].symbols} [${hop.dex.name}] hop${hop.i} ${sym(hop.a)}/${sym(hop.b)}: pool holds ${have.toFixed(4)} ${sym(token)} (floor ${floor})`);
+                `${m.paths[hop.pathIdx].symbols} [${hop.dex.name}] hop${hop.i} ${sym(hop.a)}/${sym(hop.b)}: pool holds ${have.toFixed(4)} ${sym(token)} (floor ${floor})`,
+                m.paths[hop.pathIdx].sellToken);
     }
 
     for (const h of hops)
@@ -319,7 +323,8 @@ async function main() {
     for (const h of hops)
         if (h.dex.kind === "uniV3" && h.note === `fee ${h.dex.defaultFee}`)
             report("WARN", "implicit-fee",
-                `${m.paths[h.pathIdx].symbols} hop${h.i} ${sym(h.a)}/${sym(h.b)} uses fee ${h.dex.defaultFee} — indistinguishable from unset`);
+                `${m.paths[h.pathIdx].symbols} hop${h.i} ${sym(h.a)}/${sym(h.b)} uses fee ${h.dex.defaultFee} — indistinguishable from unset`,
+                m.paths[h.pathIdx].sellToken);
 
     // ---------- suspect pools: can they actually swap? ----------
     // Asking the dex's own quoter is the only answer that counts. A pool with
@@ -374,8 +379,16 @@ async function main() {
     // them but stops failing on them, and so the decision is reviewable.
     const accepted = m.accepted ?? [];
     const used = new Set<number>();
-    const isAccepted = (f: { group: string; msg: string }) => {
-        const at = accepted.findIndex((a) => a.group === f.group && f.msg.includes(a.contains));
+    // Either form: one finding by group and message, or every finding about a
+    // path that sells a given token --- for a token that cannot be liquidated
+    // at all, where naming each path separately would say the same thing twice
+    // over and go stale the moment a path is added.
+    const matches = (a: typeof accepted[number], f: { group: string; msg: string; sell?: string }) =>
+        a.sellToken
+            ? !!f.sell && lc(f.sell) === lc(a.sellToken)
+            : !!a.contains && a.group === f.group && f.msg.includes(a.contains);
+    const isAccepted = (f: { group: string; msg: string; sell?: string }) => {
+        const at = accepted.findIndex((a) => matches(a, f));
         if (at < 0) return false;
         used.add(at);
         return true;
@@ -387,7 +400,8 @@ async function main() {
     // An entry that matches nothing has outlived whatever it was hiding, and
     // silences nothing now --- say so, so it can be taken back out.
     for (const [i, a] of accepted.entries())
-        if (!used.has(i)) warns.push({ sev: "WARN", group: "stale-accepted", msg: `nothing matches "${a.contains}" any more --- drop it from accepted` });
+        if (!used.has(i)) warns.push({ sev: "WARN", group: "stale-accepted",
+            msg: `nothing matches ${a.sellToken ? `sell token ${sym(a.sellToken)}` : `"${a.contains}"`} any more --- drop it from accepted` });
     console.log(`registry ${m.registry} @ block ${await p.getBlockNumber()}`);
     console.log(`  ${m.dexes.length} dexes | ${m.paths.length} paths | ${hops.length} hops | ${tokens.length} tokens\n`);
     for (const sev of ["ERROR", "WARN"] as Sev[]) {
@@ -402,10 +416,14 @@ async function main() {
     }
     if (excused.length) {
         console.log(`ACCEPTED (${excused.length})`);
-        for (const f of excused) {
-            const a = accepted.find((x) => x.group === f.group && f.msg.includes(x.contains))!;
-            console.log(`  - ${f.msg}`);
-            console.log(`    accepted${a.since ? ` ${a.since}` : ""}: ${a.reason}`);
+        for (const a of accepted) {
+            const mine = excused.filter((f) => matches(a, f));
+            if (!mine.length) continue;
+            const what = a.sellToken ? `everything selling ${sym(a.sellToken)}` : `${a.group}: ${a.contains}`;
+            console.log(`  ${what} --- ${mine.length} finding(s)${a.since ? `, accepted ${a.since}` : ""}`);
+            console.log(`    ${a.reason}`);
+            for (const f of mine.slice(0, 3)) console.log(`    - ${f.msg}`);
+            if (mine.length > 3) console.log(`    ... and ${mine.length - 3} more`);
         }
     }
     console.log(`\n${errors.length} error(s), ${warns.length} warning(s)`
