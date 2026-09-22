@@ -153,7 +153,9 @@ async function main() {
         const meta: { idx: number; which: "cur" | "new"; route: Route; size: BigNumber }[] = [];
         const curveJobs: { idx: number; which: "cur" | "new"; route: Route; amount: BigNumber }[] = [];
         for (const { pr, i } of chosen) {
-            const size = BigNumber.from(file.sizes[lc(pr.sellToken)] ?? "0");
+            // a route found only at a smaller size has to be re-checked at that
+            // size, or the re-quote fails and a real fix looks broken
+            const size = BigNumber.from(pr.amountIn ?? file.sizes[lc(pr.sellToken)] ?? "0");
             if (size.isZero()) continue;
             const nxt = byName.get(pr.proposed.dex);
             if (!nxt) continue;
