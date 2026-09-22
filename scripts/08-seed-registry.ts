@@ -189,6 +189,7 @@ async function main() {
         usdAnchor: existing?.usdAnchor ?? intermediates[intermediates.length - 1],
         tokens: symbols,
         minLiquidity: existing?.minLiquidity ?? {},
+        accepted: existing?.accepted,
         dexes,
         paths,
     };
