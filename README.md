@@ -95,6 +95,16 @@ Warnings: a hop's pool below its `minLiquidity` floor, a pair with no reverse
 path, a UniV3 hop on the default fee (indistinguishable from unset), and any dex
 whose `kind` is `unknown`.
 
+### Findings you have decided to live with
+
+A real finding that will not be fixed — a path registered on chain that cannot
+be withdrawn, since the registry has no `removePath` — can be declared in the
+manifest's `accepted` list with a `group`, a `contains` substring, and a
+required `reason`. Matching is narrow, so a different failure on the same path
+still errors. Excused findings are still printed under `ACCEPTED` with their
+reason, but do not fail the run, and an entry that stops matching anything is
+reported as `stale-accepted` so it gets cleaned up.
+
 ### Proposing better routes
 
 `registry:routes` quotes every registered route against alternatives on the other
