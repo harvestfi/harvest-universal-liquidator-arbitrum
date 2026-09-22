@@ -373,6 +373,10 @@ export interface Proposal {
     gainBps: number;
     /** share of input value the proposed route returns; absent when the buy token could not be priced */
     kept?: number;
+    /** exact input the quote used --- set when it is not the file's headline size */
+    amountIn?: string;
+    /** dollar size that input stands for, when a smaller one than the file's was needed */
+    sizeUsd?: number;
     current: { dex: string; path: string[]; symbols: string; out: string };
     proposed: { dex: string; kind: DexKind; path: string[]; symbols: string; out: string; hops: ProposalHop[] };
 }

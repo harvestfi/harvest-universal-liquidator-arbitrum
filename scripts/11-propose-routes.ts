@@ -492,6 +492,67 @@ async function main() {
         out.set(q.pair, arr);
     });
 
+    // ---------- pairs that produced nothing, retried smaller ----------
+    // A pool that cannot move $1000 may still move the dust a vault actually
+    // holds, and for a route that does not execute at all, a thin venue beats
+    // reverting. So where nothing quoted --- not the registered route, not any
+    // alternative --- try again smaller before giving up. Only those pairs: a
+    // pair whose registered route works is never re-tested, because an
+    // alternative that only survives at $10 is no improvement on one that
+    // handles $1000.
+    const usedAmount = new Map<string, BigNumber>();
+    const smallerSize = new Map<string, number>();
+    for (const div of [10, 100]) {
+        const stuck = [...shapes.keys()].filter((pair) => !out.has(pair) && notionals.has(pair.split("|")[0]));
+        if (!stuck.length) break;
+        const rMeta: { pair: string; route: Route; incumbent: boolean; idx: number }[] = [];
+        const rCurve: { pair: string; route: Route; incumbent: boolean; amount: BigNumber }[] = [];
+        const rCalls: Call[] = [];
+        for (const pair of stuck) {
+            const amount = notionals.get(pair.split("|")[0])!.div(div);
+            if (amount.isZero()) continue;
+            const x = paths.find((q) => `${lc(q.sellToken)}|${lc(q.buyToken)}` === pair);
+            const inc = x ? byName.get(x.dex) : undefined;
+            if (x && inc && ["uniV3", "cl", "univ2", "solidly", "algebra", "balancer", "curve"].includes(inc.kind)) {
+                const t = incTiers.get(pair);
+                const route: Route = {
+                    dex: inc, tokens: x.path.map(lc), tiers: t?.tiers ?? [], stable: t?.stable ?? [],
+                    poolIds: t?.poolIds ?? [], pools: t?.pools ?? [], label: `${x.dex} (registered)`,
+                };
+                route.factories = t?.factory;
+                if (inc.kind === "curve") rCurve.push({ pair, route, incumbent: true, amount });
+                else {
+                    const c = buildQuote(route, amount);
+                    if (c) { rMeta.push({ pair, route, incumbent: true, idx: rCalls.length }); rCalls.push(c); }
+                }
+            }
+            for (const d of candidates) for (const shape of shapes.get(pair)!) {
+                if (x && d.name === x.dex && shape.join(",") === x.path.map(lc).join(",")) continue;
+                const r = pick(options, d, shape, sym);
+                if (!r) continue;
+                if (d.kind === "curve") { rCurve.push({ pair, route: r, incumbent: false, amount }); continue; }
+                const c = buildQuote(r, amount);
+                if (!c) continue;
+                rMeta.push({ pair, route: r, incumbent: false, idx: rCalls.length });
+                rCalls.push(c);
+            }
+        }
+        if (!rCalls.length && !rCurve.length) continue;
+        console.log(`nothing quoted for ${stuck.length} pair(s); trying again at $${(USD / div).toFixed(0)}...`);
+        const rQuoted = await multicall(p, rCalls, QUOTE_CHUNK);
+        const rCurveAmt = await quoteCurve(p, rCurve.map((q) => ({ route: q.route, amount: q.amount })), coinIdx);
+        const add = (pair: string, route: Route, incumbent: boolean, amount?: BigNumber) => {
+            if (!amount || amount.isZero()) return;
+            const arr = out.get(pair) ?? [];
+            arr.push({ route, incumbent, amount });
+            out.set(pair, arr);
+            smallerSize.set(pair, USD / div);
+            usedAmount.set(pair, notionals.get(pair.split("|")[0])!.div(div));
+        };
+        rCurve.forEach((q, i) => add(q.pair, q.route, q.incumbent, rCurveAmt[i]));
+        rMeta.forEach((q) => add(q.pair, q.route, q.incumbent, readQuote(q.route, rQuoted[q.idx])));
+    }
+
     // ---------- report ----------
     const proposals: { pair: string; gain: number; inc: BigNumber; best: any; broken?: boolean; fresh?: boolean;
         kept?: number; viaLegs?: number; shape?: string }[] = [];
@@ -584,7 +645,9 @@ async function main() {
                 + (pr.viaLegs === undefined ? "" : ` against ~${(pr.viaLegs * 100).toFixed(1)}% today`)
             : pr.broken ? "registered route does not quote"
                 : `+${(pr.gain / 100).toFixed(2)}%`;
-        console.log(`${sym(s)} > ${sym(b)}   ${headline}   on ${fmt(notionals.get(s)!, s)} ${sym(s)}`);
+        const small = smallerSize.get(pr.pair);
+        console.log(`${sym(s)} > ${sym(b)}   ${headline}   on ${fmt(usedAmount.get(pr.pair) ?? notionals.get(s)!, s)} ${sym(s)}`
+            + (small ? `  (only quotes at $${small.toFixed(0)}, a thin venue)` : ""));
         if (pr.fresh && pr.shape) console.log(`   now  ${pr.shape}  (two legs, resolved by getPath)`);
         if (!pr.fresh) console.log(`   now  ${x.symbols} [${x.dex}]  ->  ${fmt(pr.inc, b)} ${sym(b)}`);
         console.log(`   alt  ${pr.best.route.label}  ->  ${fmt(pr.best.amount, b)} ${sym(b)}`);
@@ -609,6 +672,9 @@ async function main() {
             return {
                 sellToken: s0, buyToken: b0, gainBps: pr.fresh ? -2 : pr.broken ? -1 : pr.gain,
                 ...(pr.kept === undefined ? {} : { kept: pr.kept }),
+                ...(smallerSize.has(pr.pair)
+                    ? { amountIn: usedAmount.get(pr.pair)!.toString(), sizeUsd: smallerSize.get(pr.pair) }
+                    : {}),
                 current: { dex: x.dex, path: x.path.map(lc), symbols: x.symbols, out: pr.inc.toString() },
                 proposed: {
                     dex: r.dex.name, kind: r.dex.kind, path: r.tokens,
@@ -653,6 +719,20 @@ async function main() {
     // A pair only reaches `out` once some candidate quoted. One that never got
     // that far is invisible to every bucket above, so ask for it back here ---
     // an unanswered request has to say so, or it reads as "nothing to do".
+    // Silence here reads as "nothing to do", which is the one thing it never
+    // means: these are registered paths the run could not judge at any size.
+    const stranded = [...shapes.keys()].filter((k) => !out.has(k) && !synthetic.has(k) && !wanted.has(k));
+    if (stranded.length) {
+        console.log(`\n${stranded.length} registered path(s) could not be checked at any size:`);
+        for (const k of stranded) {
+            const [sell, buy] = k.split("|");
+            const why = unpriced.includes(sell)
+                ? `${sym(sell)} has no live route to ${sym(anchor)}, so no test swap can be sized`
+                : "no dex the tooling can quote has a live pool for every hop";
+            console.log(`  - ${sym(sell)} > ${sym(buy)}: ${why}`);
+        }
+        console.log("  each needs a pool to exist, or the path repointed or accepted --- see the audit");
+    }
     const silent = [...wanted].filter((k) => !out.has(k)
         && !proposals.some((pr) => pr.pair === k) && !routed.includes(k));
     if (silent.length) {
