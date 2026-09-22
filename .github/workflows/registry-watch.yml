@@ -1,0 +1,69 @@
+name: registry watch
+
+# Two cadences, because the two checks age differently.
+#
+# The audit finds breakage --- a pool with no code, a concentrated-liquidity
+# pool whose positions have all moved out of range, a path the chain and the
+# manifest disagree about. That is a liquidation reverting right now, so it is
+# worth knowing the same day.
+#
+# The route check ranks alternatives by quote, and quotes move with liquidity.
+# A one or two percent improvement seen on a Tuesday is often gone by Thursday,
+# and acting on each one costs gas and an owner signature, so it runs weekly.
+on:
+  schedule:
+    - cron: "20 6 * * *"   # daily, audit only
+    - cron: "40 6 * * 1"   # mondays, audit and route check
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: which checks to run
+        default: both
+        type: choice
+        options: [audit, routes, both]
+      min_bps:
+        description: report improvements at or above this, in bps
+        default: "100"
+        type: string
+
+concurrency:
+  group: registry-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Check the registry
+        env:
+          # read-only: this job holds no key and sends no transaction
+          REGISTRY_RPC_URL: ${{ secrets.REGISTRY_RPC_URL }}
+          WATCH_DISCORD_WEBHOOK: ${{ secrets.WATCH_DISCORD_WEBHOOK }}
+          WATCH_TELEGRAM_TOKEN: ${{ secrets.WATCH_TELEGRAM_TOKEN }}
+          WATCH_TELEGRAM_CHAT: ${{ secrets.WATCH_TELEGRAM_CHAT }}
+          WATCH_MODE: ${{ github.event.inputs.mode || (github.event.schedule == '40 6 * * 1' && 'both' || 'audit') }}
+          WATCH_MIN_BPS: ${{ github.event.inputs.min_bps || '100' }}
+          WATCH_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: yarn registry:watch
+
+      - name: Keep what it found
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proposals
+          path: /tmp/registry-watch-*.json
+          if-no-files-found: ignore
+          retention-days: 14
