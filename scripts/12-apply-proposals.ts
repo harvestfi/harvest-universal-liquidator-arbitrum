@@ -201,7 +201,11 @@ async function main() {
             // (gainBps -1) has no incumbent quote by definition. Skipping those
             // would refuse to fix exactly the routes that most need fixing.
             if (c.pr.gainBps === -1 || c.pr.gainBps === -2) {
-                const label = c.pr.gainBps === -2 ? "no route registered yet" : "registered route still does not execute";
+                const kept = c.pr.kept === undefined
+                    ? " (value kept was never checked --- the buy token could not be priced)"
+                    : ` (keeps ${(c.pr.kept * 100).toFixed(1)}% of value)`;
+                const label = (c.pr.gainBps === -2 ? "no route registered yet" : "registered route still does not execute")
+                    + (c.pr.gainBps === -2 ? kept : "");
                 if (e?.nxt?.gt(0)) {
                     console.log(`  ok   ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: ${label}, proposed route quotes`);
                     keep.push(c);
@@ -296,29 +300,39 @@ async function main() {
     const failed: { proposal: number; op: Op; error: string }[] = [];
     const brokenKeys = new Set<string>();
     let sent = 0;
+    // A shared pair-config op is queued under the first proposal that wants it,
+    // so abandoning that proposal abandons config other proposals are counting
+    // on. Whatever it does not send has to be marked broken, or a dependent
+    // sees nothing missing and sets a path against params that were never
+    // written --- a route that then reverts on every swap while the manifest
+    // records it as applied.
+    const abandon = (pi: number, from: number) => {
+        for (const o of ops.filter((x) => x.proposal === pi).slice(from))
+            if (o.key) brokenKeys.add(o.key);
+    };
     for (const [pi, { pr }] of keep.entries()) {
-        // a shared pair-config change is queued under the first proposal that
-        // wants it; if it failed there, every other dependent is unsafe too
         const missing = [...needs[pi]].filter((k) => brokenKeys.has(k));
         if (missing.length) {
             failed.push({ proposal: pi, op: ops.find((x) => x.key === missing[0])!, error: "prerequisite pair config failed" });
             console.log(`  -- skipping ${pr.proposed.symbols}: ${missing[0]} could not be configured`);
+            abandon(pi, 0);
             continue;
         }
         // a proposal's pair config has to land before the path that depends on
         // it, so a failure part way through skips the rest of that proposal
         let ok = true;
-        for (const o of ops.filter((x) => x.proposal === pi)) {
+        const mine = ops.filter((x) => x.proposal === pi);
+        for (const [oi, o] of mine.entries()) {
             try {
                 const tx = await sendTx(sender, { to: o.to, data: o.data });
                 const rcpt = await tx.wait();
                 console.log(`  ${++sent}/${ops.length} ${o.kind} ${o.what} -> ${rcpt.transactionHash}`);
             } catch (e: any) {
                 ok = false;
-                if (o.key) brokenKeys.add(o.key);
                 failed.push({ proposal: pi, op: o, error: errText(e) });
                 console.log(`  !! ${o.kind} ${o.what} FAILED: ${failed[failed.length - 1].error}`);
                 console.log(`     skipping the rest of ${pr.proposed.symbols}`);
+                abandon(pi, oi);
                 break;
             }
         }
