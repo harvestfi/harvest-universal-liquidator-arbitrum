@@ -10,10 +10,18 @@ name: registry watch
 # The route check ranks alternatives by quote, and quotes move with liquidity.
 # A one or two percent improvement seen on a Tuesday is often gone by Thursday,
 # and acting on each one costs gas and an owner signature, so it runs weekly.
+# GitHub's scheduler is best effort: its own docs say a scheduled run can be
+# delayed, and a slot can be dropped entirely under load. Two things follow.
+# Each day is asked for twice, so one dropped slot is not a missed day. And the
+# monday run always reports, even with nothing to say, so that a week with no
+# message at all means the scheduler stopped rather than the registry being
+# healthy --- silence on success is otherwise indistinguishable from silence on
+# never having run.
 on:
   schedule:
-    - cron: "20 6 * * *"   # daily, audit only
-    - cron: "40 6 * * 1"   # mondays, audit and route check
+    - cron: "20 6 * * *"    # daily, audit only
+    - cron: "20 18 * * *"   # and again, in case the morning slot was dropped
+    - cron: "40 6 * * 1"    # mondays, audit and routes, always reports
   workflow_dispatch:
     inputs:
       mode:
@@ -56,6 +64,8 @@ jobs:
           WATCH_TELEGRAM_CHAT: ${{ secrets.WATCH_TELEGRAM_CHAT }}
           WATCH_MODE: ${{ github.event.inputs.mode || (github.event.schedule == '40 6 * * 1' && 'both' || 'audit') }}
           WATCH_MIN_BPS: ${{ github.event.inputs.min_bps || '100' }}
+          # the weekly run is the heartbeat, so it speaks even when all is well
+          WATCH_ALWAYS: ${{ github.event.schedule == '40 6 * * 1' && '1' || '' }}
           WATCH_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: yarn registry:watch
 
