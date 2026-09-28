@@ -512,21 +512,21 @@
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-            "symbols": "GRAIL > WETH",
-            "dex": "camelotV3",
+            "symbols": "GRAIL > USDC > WETH",
+            "dex": "camelot",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
+                "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"
             ]
         },
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0x912ce59144191c1204e64559fe8253a0e49e6548",
-            "symbols": "GRAIL > WETH > ARB",
-            "dex": "camelotV3",
+            "symbols": "GRAIL > ARB",
+            "dex": "camelot",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
-                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                 "0x912ce59144191c1204e64559fe8253a0e49e6548"
             ]
         },
@@ -555,11 +555,11 @@
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a",
-            "symbols": "GRAIL > WETH > GMX",
-            "dex": "camelotV3",
+            "symbols": "GRAIL > USDC > GMX",
+            "dex": "camelot",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
-                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
                 "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a"
             ]
         },
@@ -676,11 +676,11 @@
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
-            "symbols": "GRAIL > WETH > USDC",
+            "symbols": "GRAIL > USDC > USDC",
             "dex": "camelotV3",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
-                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
                 "0xaf88d065e77c8cc2239327c5edb3a432268e5831"
             ]
         },
