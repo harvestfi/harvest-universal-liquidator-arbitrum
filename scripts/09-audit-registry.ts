@@ -10,8 +10,8 @@ const deployments: any = (() => {
     }
 })();
 import {
-    Call, DexEntry, IAERO_ROUTER, IALGEBRA, IBALANCER_DEX, IBVAULT, IDEX, IERC20, IFACTORY, IREGISTRY,
-    Manifest, QUOTE_CHUNK, Res, Route, ZERO, buildQuote, decode, key, lc, loadManifest, multicall,
+    Call, DexEntry, IAERO_FACTORY, IAERO_ROUTER, IALGEBRA, IBALANCER_DEX, IBVAULT, IDEX, IERC20, IFACTORY, IREGISTRY,
+    Manifest, QUOTE_CHUNK, Res, Route, ZERO, buildQuote, decode, key, lc, loadManifest, symbolizer, multicall,
     provider, readChainPaths, readQuote,
 } from "./utils/registry";
 
@@ -36,7 +36,7 @@ interface Hop { pathIdx: number; i: number; a: string; b: string; dex: DexEntry;
 async function main() {
     const p = provider();
     const m: Manifest = loadManifest();
-    const sym = (t: string) => m.tokens[lc(t)] ?? t.slice(0, 8);
+    const sym = symbolizer(m);
     const dexByName = new Map(m.dexes.map((d) => [d.name, d]));
 
     // ---------- wiring ----------
@@ -157,6 +157,7 @@ async function main() {
             case "cl":       return { target: t, data: IDEX.encodeFunctionData("tickSpacing", [h.a, h.b]) };
             case "uniV3":    return { target: t, data: IDEX.encodeFunctionData("pairFee", [h.a, h.b]) };
             case "solidly":  return { target: t, data: IDEX.encodeFunctionData("stable", [h.a, h.b]) };
+            case "aero":     return { target: t, data: IDEX.encodeFunctionData("factory", [h.a, h.b]) };
             case "curve":
             case "balancer": return { target: t, data: IDEX.encodeFunctionData("pool", [h.a, h.b]) };
             // algebra prices dynamically, so there is no per-pair config to read
@@ -196,6 +197,13 @@ async function main() {
             }
             case "univ2":
                 return { target: h.dex.poolFactory!, data: IFACTORY.encodeFunctionData("getPair", [h.a, h.b]) };
+            case "aero": {
+                const factory = lc(decode<string>(IDEX, "factory", r) ?? ZERO);
+                const which = factory === lc(h.dex.stableFactory ?? "") ? "stable" : factory === lc(h.dex.poolFactory ?? "") ? "volatile" : factory.slice(0, 10);
+                h.note = `factory ${which}`;
+                if (isZero(factory)) return { target: h.dex.address, data: IDEX.encodeFunctionData("router") };
+                return { target: factory, data: IAERO_FACTORY.encodeFunctionData("getPool", [h.a, h.b]) };
+            }
             case "algebra":
                 h.note = "dynamic fee";
                 return { target: h.dex.poolFactory!, data: IALGEBRA.encodeFunctionData("poolByPair", [h.a, h.b]) };
@@ -252,6 +260,8 @@ async function main() {
             return; // vault balances are read below from getPoolTokens
         } else if (h.dex.kind === "cl" && !h.ts) {
             return bad(h, "tickSpacing not set (0)");
+        } else if (h.dex.kind === "aero" && h.note === "factory 0x00000000") {
+            return bad(h, "factory not set");
         } else {
             const pool = decode<string>(IFACTORY, "getPair", r);
             if (isZero(pool)) return bad(h, `no pool (${h.note})`);

@@ -4,8 +4,8 @@ import fs from "fs";
 import { utils } from "ethers";
 
 import {
-    Call, DexEntry, IDEX, IREGISTRY, Manifest, PROPOSALS, ProposalFile, ProposalHop, Res, Route, ZERO,
-    IERC20, buildQuote, curveCoinIndex, decode, errText, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
+    Call, DexEntry, IAERO_FACTORY, IDEX, IFACTORY, IREGISTRY, Manifest, PROPOSALS, ProposalFile, ProposalHop, Res, Route, ZERO,
+    IERC20, buildQuote, curveCoinIndex, decode, errText, lc, loadManifest, symbolizer, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
 } from "./utils/registry";
 
 const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view returns (address)"]);
@@ -29,7 +29,7 @@ function configCalls(dex: DexEntry, hops: ProposalHop[]): Call[] {
         else if (dex.kind === "solidly") {
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("stable", [h.from, h.to]) });
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [h.from, h.to]) });
-        }
+        } else if (dex.kind === "aero") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [h.from, h.to]) });
     }
     return calls;
 }
@@ -66,8 +66,15 @@ function configOps(
                 // keep whatever factory the dex already names when it resolves the same
                 const factory = normFactory(haveFactory) === normFactory(h.factory ?? ZERO) ? haveFactory : (h.factory ?? ZERO);
                 out.push({ kind: "pairSetup", what: `${label} stable ${haveStable} -> ${!!h.stable}`, key, from: h.from, to: h.to,
-                    data: IDEX.encodeFunctionData("pairSetup", [h.from, h.to, !!h.stable, factory]) });
+                    data: IDEX.encodeFunctionData("pairSetup(address,address,bool,address)", [h.from, h.to, !!h.stable, factory]) });
             }
+        } else if (dex.kind === "aero") {
+            // the factory is the whole config: it decides stable or volatile
+            const have = lc(decode<string>(IDEX, "factory", cur[k++]) ?? ZERO);
+            const want = lc(h.factory ?? ZERO);
+            if (have !== want)
+                out.push({ kind: "pairSetup", what: `${label} factory ${have.slice(0, 10)} -> ${want.slice(0, 10)}`, key, from: h.from, to: h.to,
+                    data: IDEX.encodeFunctionData("pairSetup(address,address,address)", [h.from, h.to, want]) });
         }
     }
     return out;
@@ -77,7 +84,7 @@ async function main() {
     const file: ProposalFile = JSON.parse(fs.readFileSync(process.env.APPLY_IN ?? PROPOSALS, "utf8"));
     const m: Manifest = loadManifest();
     const p = provider();
-    const sym = (t: string) => m.tokens[lc(t)] ?? t.slice(0, 8);
+    const sym = symbolizer(m);
     const byName = new Map(m.dexes.map((d) => [d.name, d]));
     const minBps = Number(process.env.APPLY_MIN_BPS ?? file.minBps);
 
@@ -97,6 +104,7 @@ async function main() {
     let chosen = file.proposals.map((pr, i) => ({ pr, i }));
     if (ONLY) chosen = chosen.filter(({ pr, i }) =>
         ONLY.includes(String(i)) || ONLY.includes(`${sym(pr.sellToken)}>${sym(pr.buyToken)}`));
+
 
     // Anything already on chain is done: re-running after a partial or failed
     // run should pick up where it stopped, not resend what landed. A proposal
@@ -135,6 +143,19 @@ async function main() {
     if (unnamed.length) {
         const res = await multicall(p, unnamed.map((t) => ({ target: t, data: IERC20.encodeFunctionData("symbol") })));
         unnamed.forEach((t, i) => { m.tokens[t] = decode<string>(IERC20, "symbol", res[i]) ?? t.slice(0, 8); });
+    }
+
+    // A dex can be in the manifest before it is deployed, so that routes onto
+    // it can be found and weighed. Nothing can be sent to it until it has an
+    // address and the registry knows it, so those proposals wait, by name.
+    const undeployed = chosen.filter(({ pr }) => !byName.get(pr.proposed.dex)?.address);
+    if (undeployed.length) {
+        const names = [...new Set(undeployed.map(({ pr }) => pr.proposed.dex))];
+        console.log(`${undeployed.length} proposal(s) held back: ${names.join(", ")} ${names.length > 1 ? "have" : "has"} no address in the manifest.`);
+        console.log(`  Deploy with \`yarn deploy:dex\` using exactly that name, record the address under dexes, then re-run.`);
+        for (const { pr } of undeployed) console.log(`  - ${sym(pr.sellToken)} > ${sym(pr.buyToken)} -> ${pr.proposed.symbols} [${pr.proposed.dex}]`);
+        console.log();
+        chosen = chosen.filter(({ pr }) => !!byName.get(pr.proposed.dex)?.address);
     }
 
     const age = (await p.getBlockNumber()) - file.generatedAtBlock;
@@ -373,6 +394,7 @@ async function routeFromChain(p: any, dex: DexEntry, tokens: string[]): Promise<
         if (dex.kind === "uniV3") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("pairFee", [a, b]) });
         else if (dex.kind === "cl") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("tickSpacing", [a, b]) });
         else if (dex.kind === "balancer" || dex.kind === "curve") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("pool", [a, b]) });
+        else if (dex.kind === "aero") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [a, b]) });
         else {
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("stable", [a, b]) });
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [a, b]) });
@@ -385,10 +407,25 @@ async function routeFromChain(p: any, dex: DexEntry, tokens: string[]): Promise<
         else if (dex.kind === "cl") r.tiers[i] = Number(decode<any>(IDEX, "tickSpacing", res[k++]) ?? 0);
         else if (dex.kind === "balancer") r.poolIds![i] = res[k++].data;
         else if (dex.kind === "curve") r.pools![i] = lc(decode<string>(IDEX, "pool", res[k++]) ?? ZERO);
+        else if (dex.kind === "aero") r.factories![i] = lc(decode<string>(IDEX, "factory", res[k++]) ?? ZERO);
         else {
             r.stable![i] = decode<boolean>(IDEX, "stable", res[k++]) ?? false;
             r.factories![i] = decode<string>(IDEX, "factory", res[k++]) ?? ZERO;
         }
+    }
+    // a quoter that takes pools needs them resolved from the params just read
+    if (dex.kind === "aero" || (dex.kind === "cl" && dex.quoterStyle === "meta")) {
+        const pc: Call[] = []; const pi: number[] = [];
+        for (let i = 0; i < tokens.length - 1; i++) {
+            const a = tokens[i], b = tokens[i + 1];
+            const call = dex.kind === "aero"
+                ? (r.factories![i] && r.factories![i] !== ZERO ? { target: r.factories![i], data: IAERO_FACTORY.encodeFunctionData("getPool", [a, b]) } : undefined)
+                : (r.tiers[i] ? { target: dex.poolFactory!, data: IFACTORY.encodeFunctionData("getPool(address,address,int24)", [a, b, r.tiers[i]]) } : undefined);
+            if (!call) continue;
+            pi.push(i); pc.push(call);
+        }
+        const pr = pc.length ? await multicall(p, pc) : [];
+        pi.forEach((i, j) => { r.pools![i] = lc(decode<string>(IAERO_FACTORY, "getPool", pr[j]) ?? ZERO); });
     }
     return r;
 }
