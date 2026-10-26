@@ -134,9 +134,9 @@ the same for $10000 as for $1000. So every registered route is quoted a second
 time, at `PROPOSE_CAP_FACTOR` times the size (default 10), and one whose output
 falls short of scaling by more than `PROPOSE_CAP_LOSS` (default `0.25`) is
 treated as **capped** there: the alternatives are weighed at that size instead,
-provided they give up nothing at the headline size, and the proposal says so
-and carries the size, so `registry:apply` re-quotes it there and at the
-headline size. Falling short is a gate, not a verdict: a route into a thin
+provided they give up nothing beyond a basis point of rounding at the headline
+size, and the proposal says so and carries the size, so `registry:apply`
+re-quotes it there and at the headline size. Falling short is a gate, not a verdict: a route into a thin
 token falls short on every venue, and is only proposed if another venue does
 materially better there. `PROPOSE_VERBOSE=1` prints each route's share of
 linear scaling.

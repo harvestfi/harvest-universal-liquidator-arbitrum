@@ -17,6 +17,8 @@ const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view retur
 const EXECUTE = process.env.APPLY_EXECUTE === "1";
 const ONLY = process.env.APPLY_ONLY?.split(",").map((x) => x.trim()).filter(Boolean);
 const SKIP_RECHECK = process.env.APPLY_SKIP_RECHECK === "1";
+// the proposer's allowance for rounding between pools at the headline size, in bps
+const HEADLINE_TOLERANCE_BPS = 1;
 
 interface Op { kind: string; to: string; data: string; what: string; proposal: number; key?: string }
 
@@ -244,7 +246,8 @@ async function main() {
             // registered one does. The same bare comparison the proposer made.
             const curHead = e?.curHead ?? BigNumber.from(0);
             const nxtHead = e?.nxtHead ?? BigNumber.from(0);
-            const losesAtHeadline = !!cappedAt && curHead.gt(0) && nxtHead.lt(curHead);
+            const floorHead = curHead.mul(10_000 - HEADLINE_TOLERANCE_BPS).div(10_000);
+            const losesAtHeadline = !!cappedAt && curHead.gt(0) && nxtHead.lt(floorHead);
             const shortfall = losesAtHeadline ? curHead.sub(nxtHead).mul(10_000).div(curHead).toNumber() : 0;
             const headlineNote = `returns ${(shortfall / 100).toFixed(2)}% less than the registered route at $${file.usd} now`;
             // A proposal recorded as replacing a route that does not execute
