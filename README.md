@@ -128,6 +128,19 @@ merely worse: there is no percentage to compare, so any alternative that does
 quote is proposed for it. That is what catches a pool that has drained or whose
 liquidity has moved out of range.
 
+A route can also fill the test size and still be dead at a liquidation's size:
+a pool with plenty of the sell token and almost none of the buy token pays about
+the same for $10000 as for $1000. So every registered route is quoted a second
+time, at `PROPOSE_CAP_FACTOR` times the size (default 10), and one whose output
+falls short of scaling by more than `PROPOSE_CAP_LOSS` (default `0.25`) is
+treated as **capped** there: the alternatives are weighed at that size instead,
+provided they give up nothing at the headline size, and the proposal says so
+and carries the size, so `registry:apply` re-quotes it there and at the
+headline size. Falling short is a gate, not a verdict: a route into a thin
+token falls short on every venue, and is only proposed if another venue does
+materially better there. `PROPOSE_VERBOSE=1` prints each route's share of
+linear scaling.
+
 A pair with nothing registered has no route to compare against, so it has to be
 asked for. `PROPOSE_NEW_PAIRS` takes `SELL>BUY` entries (`->` works too),
 comma, space or newline separated, inline or in a file, and either side may be

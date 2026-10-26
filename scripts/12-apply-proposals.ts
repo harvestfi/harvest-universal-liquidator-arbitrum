@@ -161,7 +161,9 @@ async function main() {
     }
 
     const age = (await p.getBlockNumber()) - file.generatedAtBlock;
-    console.log(`${file.proposals.length} proposal(s) from block ${file.generatedAtBlock} (${age} blocks ago), $${file.usd} swaps`);
+    const otherSizes = file.proposals.filter((pr) => pr.sizeUsd && pr.sizeUsd !== file.usd).length;
+    console.log(`${file.proposals.length} proposal(s) from block ${file.generatedAtBlock} (${age} blocks ago), $${file.usd} swaps`
+        + (otherSizes ? `, ${otherSizes} of them judged at the size they carry` : ""));
     console.log(`applying ${chosen.length}\n`);
 
     // ---------- re-quote before writing anything ----------
@@ -173,8 +175,11 @@ async function main() {
         console.log("re-check skipped\n");
     } else {
         const calls: Call[] = [];
-        const meta: { idx: number; which: "cur" | "new"; route: Route; size: BigNumber }[] = [];
-        const curveJobs: { idx: number; which: "cur" | "new"; route: Route; amount: BigNumber }[] = [];
+        // "at" is the size a quote is taken at: the one the proposal carries, or
+        // the file's headline size when the proposal carries a larger one
+        type At = "carried" | "headline";
+        const meta: { idx: number; which: "cur" | "new"; at: At; route: Route; size: BigNumber }[] = [];
+        const curveJobs: { idx: number; which: "cur" | "new"; at: At; route: Route; amount: BigNumber }[] = [];
         for (const { pr, i } of chosen) {
             // a route found only at a smaller size has to be re-checked at that
             // size, or the re-quote fails and a real fix looks broken
@@ -193,35 +198,55 @@ async function main() {
                 stable: pr.proposed.hops.map((h) => !!h.stable),
                 factories: pr.proposed.hops.map((h) => h.factory ?? ZERO),
             };
-            for (const [which, route] of ([["cur", curRoute], ["new", newRoute]] as const)) {
-                if (!route) continue;
-                if (route.dex.kind === "curve") { curveJobs.push({ idx: i, which, route, amount: size }); continue; }
-                const c = buildQuote(route, size);
-                if (!c) continue;
-                meta.push({ idx: i, which, route, size });
-                calls.push(c);
+            // A route judged at a larger size, where the registered one caps, was
+            // proposed on condition that it gives up nothing at the headline size
+            // --- the size liquidations actually are. Prices have moved since, so
+            // that condition is checked again too, at the headline size.
+            const headline = BigNumber.from(file.sizes[lc(pr.sellToken)] ?? "0");
+            const sizes: [At, BigNumber][] = [["carried", size]];
+            if (pr.sizeUsd && pr.sizeUsd > file.usd && !headline.isZero()) sizes.push(["headline", headline]);
+            for (const [at, amount] of sizes) {
+                for (const [which, route] of ([["cur", curRoute], ["new", newRoute]] as const)) {
+                    if (!route) continue;
+                    if (route.dex.kind === "curve") { curveJobs.push({ idx: i, which, at, route, amount }); continue; }
+                    const c = buildQuote(route, amount);
+                    if (!c) continue;
+                    meta.push({ idx: i, which, at, route, size: amount });
+                    calls.push(c);
+                }
             }
         }
         const res = await multicall(p, calls, 8);
-        const now = new Map<number, { cur?: BigNumber; nxt?: BigNumber }>();
-        meta.forEach((q, k) => {
-            const amt = readQuote(q.route, res[k]);
-            const e = now.get(q.idx) ?? {};
-            if (q.which === "cur") e.cur = amt; else e.nxt = amt;
-            now.set(q.idx, e);
-        });
+        // cur/nxt at the carried size; curHead/nxtHead at the headline size, when that was asked for
+        type Quotes = { cur?: BigNumber; nxt?: BigNumber; curHead?: BigNumber; nxtHead?: BigNumber };
+        const now = new Map<number, Quotes>();
+        const record = (idx: number, which: "cur" | "new", at: At, amt: BigNumber | undefined) => {
+            const e = now.get(idx) ?? {};
+            if (at === "carried") { if (which === "cur") e.cur = amt; else e.nxt = amt; }
+            else { if (which === "cur") e.curHead = amt; else e.nxtHead = amt; }
+            now.set(idx, e);
+        };
+        meta.forEach((q, k) => record(q.idx, q.which, q.at, readQuote(q.route, res[k])));
         if (curveJobs.length) {
             const coinIdx = await curveCoinIndex(p, curveJobs.flatMap((j) => j.route.pools ?? []));
             const amts = await quoteCurve(p, curveJobs.map((j) => ({ route: j.route, amount: j.amount })), coinIdx);
-            curveJobs.forEach((j, k) => {
-                const e = now.get(j.idx) ?? {};
-                if (j.which === "cur") e.cur = amts[k]; else e.nxt = amts[k];
-                now.set(j.idx, e);
-            });
+            curveJobs.forEach((j, k) => record(j.idx, j.which, j.at, amts[k]));
         }
 
         for (const c of chosen) {
             const e = now.get(c.i);
+            const name = `${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}`;
+            const at = c.pr.sizeUsd && c.pr.sizeUsd !== file.usd ? ` at $${c.pr.sizeUsd}` : "";
+            // judged at a larger size, where the registered route caps
+            const cappedAt = c.pr.sizeUsd && c.pr.sizeUsd > file.usd ? c.pr.sizeUsd : undefined;
+            // The condition such a proposal was made under, checked again now: at
+            // the headline size the proposed route returns at least what the
+            // registered one does. The same bare comparison the proposer made.
+            const curHead = e?.curHead ?? BigNumber.from(0);
+            const nxtHead = e?.nxtHead ?? BigNumber.from(0);
+            const losesAtHeadline = !!cappedAt && curHead.gt(0) && nxtHead.lt(curHead);
+            const shortfall = losesAtHeadline ? curHead.sub(nxtHead).mul(10_000).div(curHead).toNumber() : 0;
+            const headlineNote = `returns ${(shortfall / 100).toFixed(2)}% less than the registered route at $${file.usd} now`;
             // A proposal recorded as replacing a route that does not execute
             // (gainBps -1) has no incumbent quote by definition. Skipping those
             // would refuse to fix exactly the routes that most need fixing.
@@ -229,26 +254,33 @@ async function main() {
                 const kept = c.pr.kept === undefined
                     ? " (value kept was never checked --- the buy token could not be priced)"
                     : ` (keeps ${(c.pr.kept * 100).toFixed(1)}% of value)`;
-                const label = (c.pr.gainBps === -2 ? "no route registered yet" : "registered route still does not execute")
-                    + (c.pr.gainBps === -2 ? kept : "");
-                if (e?.nxt?.gt(0)) {
-                    console.log(`  ok   ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: ${label}, proposed route quotes`);
-                    keep.push(c);
+                const label = c.pr.gainBps === -2 ? `no route registered yet${kept}`
+                    : cappedAt ? `registered route returns nothing at $${cappedAt}`
+                    : "registered route still does not execute";
+                if (!e?.nxt?.gt(0)) {
+                    console.log(`  skip ${name}: proposed route does not quote${at}`);
+                } else if (losesAtHeadline) {
+                    console.log(`  skip ${name}: ${label}, but the proposed route ${headlineNote}`);
                 } else {
-                    console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: proposed route does not quote`);
+                    console.log(`  ok   ${name}: ${label}, proposed route quotes`);
+                    keep.push(c);
                 }
                 continue;
             }
             if (!e?.cur || !e.nxt || e.cur.isZero()) {
-                console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: could not re-quote`);
+                console.log(`  skip ${name}: could not re-quote${at}`);
                 continue;
             }
             const gain = e.nxt.sub(e.cur).mul(10_000).div(e.cur).toNumber();
             if (gain < minBps) {
-                console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: gain is now ${(gain / 100).toFixed(2)}%, below ${(minBps / 100).toFixed(2)}%`);
+                console.log(`  skip ${name}: gain is now ${(gain / 100).toFixed(2)}%${at}, below ${(minBps / 100).toFixed(2)}%`);
                 continue;
             }
-            console.log(`  ok   ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: ${(gain / 100).toFixed(2)}% (proposed ${(c.pr.gainBps / 100).toFixed(2)}%)`);
+            if (losesAtHeadline) {
+                console.log(`  skip ${name}: ${(gain / 100).toFixed(2)}%${at}, but ${headlineNote}`);
+                continue;
+            }
+            console.log(`  ok   ${name}: ${(gain / 100).toFixed(2)}% (proposed ${(c.pr.gainBps / 100).toFixed(2)}%)${at}`);
             keep.push(c);
         }
         console.log("");
