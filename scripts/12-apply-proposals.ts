@@ -5,7 +5,7 @@ import { utils } from "ethers";
 
 import {
     Call, DexEntry, IAERO_FACTORY, IDEX, IFACTORY, IREGISTRY, Manifest, PROPOSALS, ProposalFile, ProposalHop, Res, Route, ZERO,
-    IERC20, buildQuote, curveCoinIndex, decode, errText, lc, loadManifest, symbolizer, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
+    IERC20, buildQuote, canonical, curveCoinIndex, decode, errText, lc, loadManifest, symbolizer, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
 } from "./utils/registry";
 
 const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view returns (address)"]);
@@ -48,7 +48,9 @@ function configOps(
     let k = 0;
     for (const h of hops) {
         const label = `${dex.name} ${sym(h.from)}/${sym(h.to)}`;
-        const key = `${dex.name}|${lc(h.from)}|${lc(h.to)}`;
+        // every setter writes both directions, so a hop and its reverse are
+        // one piece of config and must dedupe as one
+        const key = `${dex.name}|${[lc(h.from), lc(h.to)].sort().join("|")}`;
         if (dex.kind === "uniV3") {
             const have = Number(decode<any>(IDEX, "pairFee", cur[k++]) ?? 0);
             if (have !== h.fee)
@@ -372,7 +374,7 @@ async function main() {
         }
         entry.dex = pr.proposed.dex;
         entry.path = pr.proposed.path;
-        entry.symbols = pr.proposed.path.map(sym).join(" > ");
+        entry.symbols = pr.proposed.path.map(canonical(m)).join(" > ");
         saveManifest(m);
     }
 

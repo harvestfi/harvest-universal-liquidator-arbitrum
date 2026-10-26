@@ -427,6 +427,15 @@ export interface Route {
  * Base carries two AERO, Arbitrum two USDC --- and a report that prints both
  * as the same word is a report that misleads. Those get a short address tag.
  */
+/**
+ * The name a token has in the manifest, untagged. This is what the manifest's
+ * own `symbols` strings are built from and compared against; the tagged form
+ * from symbolizer is for reading, not for storing.
+ */
+export function canonical(m: Manifest): (t: string) => string {
+    return (t: string) => m.tokens[lc(t)] ?? lc(t).slice(0, 8);
+}
+
 export function symbolizer(m: Manifest): (t: string) => string {
     // the proposer names tokens it meets mid-run, so the tally follows the map
     let seen = -1;

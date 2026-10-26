@@ -11,7 +11,7 @@ const deployments: any = (() => {
 })();
 import {
     Call, DexEntry, IAERO_FACTORY, IAERO_ROUTER, IALGEBRA, IBALANCER_DEX, IBVAULT, IDEX, IERC20, IFACTORY, IREGISTRY,
-    Manifest, QUOTE_CHUNK, Res, Route, ZERO, buildQuote, decode, key, lc, loadManifest, symbolizer, multicall,
+    Manifest, QUOTE_CHUNK, Res, Route, ZERO, buildQuote, canonical, decode, key, lc, loadManifest, symbolizer, multicall,
     provider, readChainPaths, readQuote,
 } from "./utils/registry";
 
@@ -111,7 +111,7 @@ async function main() {
                 `${x.symbols}: path ends (${sym(x.path[0])}, ${sym(x.path[x.path.length - 1])}) do not match sellToken/buyToken (${sym(x.sellToken)}, ${sym(x.buyToken)})`);
         if (x.path.length < 2)
             report("ERROR", "manifest", `${x.symbols}: path needs at least 2 tokens`);
-        const expected = x.path.map((t) => sym(t)).join(" > ");
+        const expected = x.path.map(canonical(m)).join(" > ");
         if (x.symbols !== expected)
             report("WARN", "manifest", `symbols "${x.symbols}" is stale, path reads ${expected}`);
         if (!dexByName.has(x.dex))
