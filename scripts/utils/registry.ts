@@ -43,6 +43,7 @@ export type DexKind =
     | "cl"        // slipstream style, int24 tickSpacing per pair
     | "algebra"   // algebra style, dynamic fee so no per-pair tier and no fee in the path
     | "solidly"   // aerodrome style, (stable, factory) per pair
+    | "aero"      // aero style, stable and volatile pools from separate factories, factory per pair
     | "univ2"     // constant product router, no per-pair config
     | "curve"
     | "balancer"
@@ -55,9 +56,13 @@ export interface DexEntry {
     hex: string;
     address: string;
     poolFactory?: string;
+    /** aero: the stable pool factory; poolFactory is then the volatile one */
+    stableFactory?: string;
     router?: string;
     vault?: string;
     quoter?: string;
+    /** "meta": the quoter takes pool addresses rather than an encoded path */
+    quoterStyle?: "meta";
     defaultFee?: number;
     /** uniV3 fee tiers / CL tick spacings worth probing for alternative routes */
     tiers?: number[];
@@ -143,6 +148,7 @@ export const IDEX = new utils.Interface([
     "function setFee(address,address,uint24)",
     "function setTickSpacing(address,address,int24)",
     "function pairSetup(address,address,bool,address)",
+    "function pairSetup(address,address,address)",
 ]);
 
 // pool(address,address) returns bytes32 on BalancerDex and address on CurveDex.
@@ -186,6 +192,13 @@ export const IQUOTER = new utils.Interface([
     "function quoteExactInput(bytes,uint256) returns (uint256 amountOut, uint160[] sqrtPriceX96After, uint32[] initializedTicksCrossed, uint256 gasEstimate)",
 ]);
 
+export const IAERO_FACTORY = new utils.Interface([
+    "function getPool(address,address) view returns (address)",
+]);
+// Aero's Metaquoter quotes a forward-ordered list of pools, V2 or CL alike
+export const IMETAQUOTER = new utils.Interface([
+    "function quoteExactInput(address[] pools, address tokenIn, uint256 amountIn) returns (uint256 amountOut, uint160[] sqrtPriceX96AfterList, uint32[] initializedTicksCrossedList)",
+]);
 export const IV2ROUTER = new utils.Interface([
     "function getAmountsOut(uint256,address[]) view returns (uint256[])",
 ]);
@@ -409,6 +422,38 @@ export interface Route {
     label: string;
 }
 
+/**
+ * Readable names for a manifest's tokens. Two tokens can share a symbol ---
+ * Base carries two AERO, Arbitrum two USDC --- and a report that prints both
+ * as the same word is a report that misleads. Those get a short address tag.
+ */
+/**
+ * The name a token has in the manifest, untagged. This is what the manifest's
+ * own `symbols` strings are built from and compared against; the tagged form
+ * from symbolizer is for reading, not for storing.
+ */
+export function canonical(m: Manifest): (t: string) => string {
+    return (t: string) => m.tokens[lc(t)] ?? lc(t).slice(0, 8);
+}
+
+export function symbolizer(m: Manifest): (t: string) => string {
+    // the proposer names tokens it meets mid-run, so the tally follows the map
+    let seen = -1;
+    let count = new Map<string, number>();
+    return (t: string) => {
+        const names = Object.keys(m.tokens);
+        if (names.length !== seen) {
+            seen = names.length;
+            count = new Map<string, number>();
+            for (const s of Object.values(m.tokens)) count.set(s, (count.get(s) ?? 0) + 1);
+        }
+        const a = lc(t);
+        const s = m.tokens[a];
+        if (!s) return a.slice(0, 8);
+        return (count.get(s) ?? 0) > 1 ? `${s}·${a.slice(2, 6)}` : s;
+    };
+}
+
 export const alive = (r: Res) => r.success && r.data !== "0x";
 
 export function encodePath(tokens: string[], tiers: number[], type: "uint24" | "int24") {
@@ -421,6 +466,11 @@ export function encodePath(tokens: string[], tiers: number[], type: "uint24" | "
 /** Encode an amountIn quote for a route, or undefined when the dex has no quoter. */
 export function buildQuote(r: Route, amountIn: BigNumber): Call | undefined {
     const d = r.dex;
+    if (d.kind === "aero" || (d.kind === "cl" && d.quoterStyle === "meta")) {
+        // the quoter wants the pools themselves, so a route has to know them
+        if (!d.quoter || !r.pools?.length || r.pools.some((x) => !x || x === ZERO)) return undefined;
+        return { target: d.quoter, data: IMETAQUOTER.encodeFunctionData("quoteExactInput", [r.pools, r.tokens[0], amountIn]) };
+    }
     if (d.kind === "uniV3" || d.kind === "cl") {
         if (!d.quoter) return undefined;
         const tiers = r.tokens.slice(1).map((_, i) => r.tiers[i] || d.defaultFee || 0);
@@ -517,6 +567,7 @@ export async function quoteCurve(
 
 export function readQuote(r: Route, res: Res): BigNumber | undefined {
     if (!alive(res)) return undefined;
+    if (r.dex.kind === "aero" || (r.dex.kind === "cl" && r.dex.quoterStyle === "meta")) return decode<BigNumber>(IMETAQUOTER, "quoteExactInput", res);
     if (r.dex.kind === "uniV3" || r.dex.kind === "cl") return decode<BigNumber>(IQUOTER, "quoteExactInput", res);
     if (r.dex.kind === "algebra") return decode<BigNumber>(IALGEBRA, "quoteExactInput", res);
     if (r.dex.kind === "balancer") {

@@ -4,8 +4,8 @@ import fs from "fs";
 import { utils } from "ethers";
 
 import {
-    Call, DexEntry, IDEX, IREGISTRY, Manifest, PROPOSALS, ProposalFile, ProposalHop, Res, Route, ZERO,
-    IERC20, buildQuote, curveCoinIndex, decode, errText, lc, loadManifest, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
+    Call, DexEntry, IAERO_FACTORY, IDEX, IFACTORY, IREGISTRY, Manifest, PROPOSALS, ProposalFile, ProposalHop, Res, Route, ZERO,
+    IERC20, buildQuote, canonical, curveCoinIndex, decode, errText, lc, loadManifest, symbolizer, multicall, provider, quoteCurve, readQuote, saveManifest, sendTx, signer,
 } from "./utils/registry";
 
 const IAERO_DEFAULT = new utils.Interface(["function defaultFactory() view returns (address)"]);
@@ -29,7 +29,7 @@ function configCalls(dex: DexEntry, hops: ProposalHop[]): Call[] {
         else if (dex.kind === "solidly") {
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("stable", [h.from, h.to]) });
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [h.from, h.to]) });
-        }
+        } else if (dex.kind === "aero") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [h.from, h.to]) });
     }
     return calls;
 }
@@ -48,7 +48,9 @@ function configOps(
     let k = 0;
     for (const h of hops) {
         const label = `${dex.name} ${sym(h.from)}/${sym(h.to)}`;
-        const key = `${dex.name}|${lc(h.from)}|${lc(h.to)}`;
+        // every setter writes both directions, so a hop and its reverse are
+        // one piece of config and must dedupe as one
+        const key = `${dex.name}|${[lc(h.from), lc(h.to)].sort().join("|")}`;
         if (dex.kind === "uniV3") {
             const have = Number(decode<any>(IDEX, "pairFee", cur[k++]) ?? 0);
             if (have !== h.fee)
@@ -66,8 +68,15 @@ function configOps(
                 // keep whatever factory the dex already names when it resolves the same
                 const factory = normFactory(haveFactory) === normFactory(h.factory ?? ZERO) ? haveFactory : (h.factory ?? ZERO);
                 out.push({ kind: "pairSetup", what: `${label} stable ${haveStable} -> ${!!h.stable}`, key, from: h.from, to: h.to,
-                    data: IDEX.encodeFunctionData("pairSetup", [h.from, h.to, !!h.stable, factory]) });
+                    data: IDEX.encodeFunctionData("pairSetup(address,address,bool,address)", [h.from, h.to, !!h.stable, factory]) });
             }
+        } else if (dex.kind === "aero") {
+            // the factory is the whole config: it decides stable or volatile
+            const have = lc(decode<string>(IDEX, "factory", cur[k++]) ?? ZERO);
+            const want = lc(h.factory ?? ZERO);
+            if (have !== want)
+                out.push({ kind: "pairSetup", what: `${label} factory ${have.slice(0, 10)} -> ${want.slice(0, 10)}`, key, from: h.from, to: h.to,
+                    data: IDEX.encodeFunctionData("pairSetup(address,address,address)", [h.from, h.to, want]) });
         }
     }
     return out;
@@ -77,7 +86,7 @@ async function main() {
     const file: ProposalFile = JSON.parse(fs.readFileSync(process.env.APPLY_IN ?? PROPOSALS, "utf8"));
     const m: Manifest = loadManifest();
     const p = provider();
-    const sym = (t: string) => m.tokens[lc(t)] ?? t.slice(0, 8);
+    const sym = symbolizer(m);
     const byName = new Map(m.dexes.map((d) => [d.name, d]));
     const minBps = Number(process.env.APPLY_MIN_BPS ?? file.minBps);
 
@@ -97,6 +106,7 @@ async function main() {
     let chosen = file.proposals.map((pr, i) => ({ pr, i }));
     if (ONLY) chosen = chosen.filter(({ pr, i }) =>
         ONLY.includes(String(i)) || ONLY.includes(`${sym(pr.sellToken)}>${sym(pr.buyToken)}`));
+
 
     // Anything already on chain is done: re-running after a partial or failed
     // run should pick up where it stopped, not resend what landed. A proposal
@@ -137,8 +147,23 @@ async function main() {
         unnamed.forEach((t, i) => { m.tokens[t] = decode<string>(IERC20, "symbol", res[i]) ?? t.slice(0, 8); });
     }
 
+    // A dex can be in the manifest before it is deployed, so that routes onto
+    // it can be found and weighed. Nothing can be sent to it until it has an
+    // address and the registry knows it, so those proposals wait, by name.
+    const undeployed = chosen.filter(({ pr }) => !byName.get(pr.proposed.dex)?.address);
+    if (undeployed.length) {
+        const names = [...new Set(undeployed.map(({ pr }) => pr.proposed.dex))];
+        console.log(`${undeployed.length} proposal(s) held back: ${names.join(", ")} ${names.length > 1 ? "have" : "has"} no address in the manifest.`);
+        console.log(`  Deploy with \`yarn deploy:dex\` using exactly that name, record the address under dexes, then re-run.`);
+        for (const { pr } of undeployed) console.log(`  - ${sym(pr.sellToken)} > ${sym(pr.buyToken)} -> ${pr.proposed.symbols} [${pr.proposed.dex}]`);
+        console.log();
+        chosen = chosen.filter(({ pr }) => !!byName.get(pr.proposed.dex)?.address);
+    }
+
     const age = (await p.getBlockNumber()) - file.generatedAtBlock;
-    console.log(`${file.proposals.length} proposal(s) from block ${file.generatedAtBlock} (${age} blocks ago), $${file.usd} swaps`);
+    const otherSizes = file.proposals.filter((pr) => pr.sizeUsd && pr.sizeUsd !== file.usd).length;
+    console.log(`${file.proposals.length} proposal(s) from block ${file.generatedAtBlock} (${age} blocks ago), $${file.usd} swaps`
+        + (otherSizes ? `, ${otherSizes} of them judged at the size they carry` : ""));
     console.log(`applying ${chosen.length}\n`);
 
     // ---------- re-quote before writing anything ----------
@@ -150,8 +175,11 @@ async function main() {
         console.log("re-check skipped\n");
     } else {
         const calls: Call[] = [];
-        const meta: { idx: number; which: "cur" | "new"; route: Route; size: BigNumber }[] = [];
-        const curveJobs: { idx: number; which: "cur" | "new"; route: Route; amount: BigNumber }[] = [];
+        // "at" is the size a quote is taken at: the one the proposal carries, or
+        // the file's headline size when the proposal carries a larger one
+        type At = "carried" | "headline";
+        const meta: { idx: number; which: "cur" | "new"; at: At; route: Route; size: BigNumber }[] = [];
+        const curveJobs: { idx: number; which: "cur" | "new"; at: At; route: Route; amount: BigNumber }[] = [];
         for (const { pr, i } of chosen) {
             // a route found only at a smaller size has to be re-checked at that
             // size, or the re-quote fails and a real fix looks broken
@@ -170,35 +198,55 @@ async function main() {
                 stable: pr.proposed.hops.map((h) => !!h.stable),
                 factories: pr.proposed.hops.map((h) => h.factory ?? ZERO),
             };
-            for (const [which, route] of ([["cur", curRoute], ["new", newRoute]] as const)) {
-                if (!route) continue;
-                if (route.dex.kind === "curve") { curveJobs.push({ idx: i, which, route, amount: size }); continue; }
-                const c = buildQuote(route, size);
-                if (!c) continue;
-                meta.push({ idx: i, which, route, size });
-                calls.push(c);
+            // A route judged at a larger size, where the registered one caps, was
+            // proposed on condition that it gives up nothing at the headline size
+            // --- the size liquidations actually are. Prices have moved since, so
+            // that condition is checked again too, at the headline size.
+            const headline = BigNumber.from(file.sizes[lc(pr.sellToken)] ?? "0");
+            const sizes: [At, BigNumber][] = [["carried", size]];
+            if (pr.sizeUsd && pr.sizeUsd > file.usd && !headline.isZero()) sizes.push(["headline", headline]);
+            for (const [at, amount] of sizes) {
+                for (const [which, route] of ([["cur", curRoute], ["new", newRoute]] as const)) {
+                    if (!route) continue;
+                    if (route.dex.kind === "curve") { curveJobs.push({ idx: i, which, at, route, amount }); continue; }
+                    const c = buildQuote(route, amount);
+                    if (!c) continue;
+                    meta.push({ idx: i, which, at, route, size: amount });
+                    calls.push(c);
+                }
             }
         }
         const res = await multicall(p, calls, 8);
-        const now = new Map<number, { cur?: BigNumber; nxt?: BigNumber }>();
-        meta.forEach((q, k) => {
-            const amt = readQuote(q.route, res[k]);
-            const e = now.get(q.idx) ?? {};
-            if (q.which === "cur") e.cur = amt; else e.nxt = amt;
-            now.set(q.idx, e);
-        });
+        // cur/nxt at the carried size; curHead/nxtHead at the headline size, when that was asked for
+        type Quotes = { cur?: BigNumber; nxt?: BigNumber; curHead?: BigNumber; nxtHead?: BigNumber };
+        const now = new Map<number, Quotes>();
+        const record = (idx: number, which: "cur" | "new", at: At, amt: BigNumber | undefined) => {
+            const e = now.get(idx) ?? {};
+            if (at === "carried") { if (which === "cur") e.cur = amt; else e.nxt = amt; }
+            else { if (which === "cur") e.curHead = amt; else e.nxtHead = amt; }
+            now.set(idx, e);
+        };
+        meta.forEach((q, k) => record(q.idx, q.which, q.at, readQuote(q.route, res[k])));
         if (curveJobs.length) {
             const coinIdx = await curveCoinIndex(p, curveJobs.flatMap((j) => j.route.pools ?? []));
             const amts = await quoteCurve(p, curveJobs.map((j) => ({ route: j.route, amount: j.amount })), coinIdx);
-            curveJobs.forEach((j, k) => {
-                const e = now.get(j.idx) ?? {};
-                if (j.which === "cur") e.cur = amts[k]; else e.nxt = amts[k];
-                now.set(j.idx, e);
-            });
+            curveJobs.forEach((j, k) => record(j.idx, j.which, j.at, amts[k]));
         }
 
         for (const c of chosen) {
             const e = now.get(c.i);
+            const name = `${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}`;
+            const at = c.pr.sizeUsd && c.pr.sizeUsd !== file.usd ? ` at $${c.pr.sizeUsd}` : "";
+            // judged at a larger size, where the registered route caps
+            const cappedAt = c.pr.sizeUsd && c.pr.sizeUsd > file.usd ? c.pr.sizeUsd : undefined;
+            // The condition such a proposal was made under, checked again now: at
+            // the headline size the proposed route returns at least what the
+            // registered one does. The same bare comparison the proposer made.
+            const curHead = e?.curHead ?? BigNumber.from(0);
+            const nxtHead = e?.nxtHead ?? BigNumber.from(0);
+            const losesAtHeadline = !!cappedAt && curHead.gt(0) && nxtHead.lt(curHead);
+            const shortfall = losesAtHeadline ? curHead.sub(nxtHead).mul(10_000).div(curHead).toNumber() : 0;
+            const headlineNote = `returns ${(shortfall / 100).toFixed(2)}% less than the registered route at $${file.usd} now`;
             // A proposal recorded as replacing a route that does not execute
             // (gainBps -1) has no incumbent quote by definition. Skipping those
             // would refuse to fix exactly the routes that most need fixing.
@@ -206,26 +254,33 @@ async function main() {
                 const kept = c.pr.kept === undefined
                     ? " (value kept was never checked --- the buy token could not be priced)"
                     : ` (keeps ${(c.pr.kept * 100).toFixed(1)}% of value)`;
-                const label = (c.pr.gainBps === -2 ? "no route registered yet" : "registered route still does not execute")
-                    + (c.pr.gainBps === -2 ? kept : "");
-                if (e?.nxt?.gt(0)) {
-                    console.log(`  ok   ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: ${label}, proposed route quotes`);
-                    keep.push(c);
+                const label = c.pr.gainBps === -2 ? `no route registered yet${kept}`
+                    : cappedAt ? `registered route returns nothing at $${cappedAt}`
+                    : "registered route still does not execute";
+                if (!e?.nxt?.gt(0)) {
+                    console.log(`  skip ${name}: proposed route does not quote${at}`);
+                } else if (losesAtHeadline) {
+                    console.log(`  skip ${name}: ${label}, but the proposed route ${headlineNote}`);
                 } else {
-                    console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: proposed route does not quote`);
+                    console.log(`  ok   ${name}: ${label}, proposed route quotes`);
+                    keep.push(c);
                 }
                 continue;
             }
             if (!e?.cur || !e.nxt || e.cur.isZero()) {
-                console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: could not re-quote`);
+                console.log(`  skip ${name}: could not re-quote${at}`);
                 continue;
             }
             const gain = e.nxt.sub(e.cur).mul(10_000).div(e.cur).toNumber();
             if (gain < minBps) {
-                console.log(`  skip ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: gain is now ${(gain / 100).toFixed(2)}%, below ${(minBps / 100).toFixed(2)}%`);
+                console.log(`  skip ${name}: gain is now ${(gain / 100).toFixed(2)}%${at}, below ${(minBps / 100).toFixed(2)}%`);
                 continue;
             }
-            console.log(`  ok   ${sym(c.pr.sellToken)} > ${sym(c.pr.buyToken)}: ${(gain / 100).toFixed(2)}% (proposed ${(c.pr.gainBps / 100).toFixed(2)}%)`);
+            if (losesAtHeadline) {
+                console.log(`  skip ${name}: ${(gain / 100).toFixed(2)}%${at}, but ${headlineNote}`);
+                continue;
+            }
+            console.log(`  ok   ${name}: ${(gain / 100).toFixed(2)}% (proposed ${(c.pr.gainBps / 100).toFixed(2)}%)${at}`);
             keep.push(c);
         }
         console.log("");
@@ -351,7 +406,7 @@ async function main() {
         }
         entry.dex = pr.proposed.dex;
         entry.path = pr.proposed.path;
-        entry.symbols = pr.proposed.path.map(sym).join(" > ");
+        entry.symbols = pr.proposed.path.map(canonical(m)).join(" > ");
         saveManifest(m);
     }
 
@@ -373,6 +428,7 @@ async function routeFromChain(p: any, dex: DexEntry, tokens: string[]): Promise<
         if (dex.kind === "uniV3") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("pairFee", [a, b]) });
         else if (dex.kind === "cl") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("tickSpacing", [a, b]) });
         else if (dex.kind === "balancer" || dex.kind === "curve") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("pool", [a, b]) });
+        else if (dex.kind === "aero") calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [a, b]) });
         else {
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("stable", [a, b]) });
             calls.push({ target: dex.address, data: IDEX.encodeFunctionData("factory", [a, b]) });
@@ -385,10 +441,25 @@ async function routeFromChain(p: any, dex: DexEntry, tokens: string[]): Promise<
         else if (dex.kind === "cl") r.tiers[i] = Number(decode<any>(IDEX, "tickSpacing", res[k++]) ?? 0);
         else if (dex.kind === "balancer") r.poolIds![i] = res[k++].data;
         else if (dex.kind === "curve") r.pools![i] = lc(decode<string>(IDEX, "pool", res[k++]) ?? ZERO);
+        else if (dex.kind === "aero") r.factories![i] = lc(decode<string>(IDEX, "factory", res[k++]) ?? ZERO);
         else {
             r.stable![i] = decode<boolean>(IDEX, "stable", res[k++]) ?? false;
             r.factories![i] = decode<string>(IDEX, "factory", res[k++]) ?? ZERO;
         }
+    }
+    // a quoter that takes pools needs them resolved from the params just read
+    if (dex.kind === "aero" || (dex.kind === "cl" && dex.quoterStyle === "meta")) {
+        const pc: Call[] = []; const pi: number[] = [];
+        for (let i = 0; i < tokens.length - 1; i++) {
+            const a = tokens[i], b = tokens[i + 1];
+            const call = dex.kind === "aero"
+                ? (r.factories![i] && r.factories![i] !== ZERO ? { target: r.factories![i], data: IAERO_FACTORY.encodeFunctionData("getPool", [a, b]) } : undefined)
+                : (r.tiers[i] ? { target: dex.poolFactory!, data: IFACTORY.encodeFunctionData("getPool(address,address,int24)", [a, b, r.tiers[i]]) } : undefined);
+            if (!call) continue;
+            pi.push(i); pc.push(call);
+        }
+        const pr = pc.length ? await multicall(p, pc) : [];
+        pi.forEach((i, j) => { r.pools![i] = lc(decode<string>(IAERO_FACTORY, "getPool", pr[j]) ?? ZERO); });
     }
     return r;
 }
