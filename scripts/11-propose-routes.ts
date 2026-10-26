@@ -33,6 +33,9 @@ const MIN_RETENTION = Number(process.env.PROPOSE_MIN_RETENTION ?? 0.9);
 // alternatives are weighed at that size instead, and a proposal carries it.
 const CAP_FACTOR = Number(process.env.PROPOSE_CAP_FACTOR ?? 10);
 const CAP_LOSS = Number(process.env.PROPOSE_CAP_LOSS ?? 0.25);
+// Two pools at the same tick differ by rounding, so "gives up nothing at the
+// base size" allows this much: a shortfall under it still counts as holding its own.
+const BASE_TOLERANCE_BPS = 1;
 // Kinds whose pools are discovered from a factory. For these, a quote that
 // fails means the pool genuinely cannot swap. curve and balancer depend on
 // per-pair config, and erc4626/aave/traderJoe have no quoter wired at all, so a
@@ -728,7 +731,8 @@ async function main() {
             const bigList = bigQuotes.get(pair) ?? [];
             const incBig = bigList.find((r) => r.incumbent)?.amount ?? BigNumber.from(0);
             const baseOf = new Map(list.map((r) => [r.route.label, r.amount]));
-            const eligible = bigList.filter((r) => !r.incumbent && (baseOf.get(r.route.label) ?? BigNumber.from(0)).gte(inc.amount));
+            const floor = inc.amount.mul(10_000 - BASE_TOLERANCE_BPS).div(10_000);
+            const eligible = bigList.filter((r) => !r.incumbent && (baseOf.get(r.route.label) ?? BigNumber.from(0)).gte(floor));
             const bestB = eligible.length ? eligible.reduce((a, b) => (b.amount.gt(a.amount) ? b : a)) : undefined;
             if (bestB) {
                 // an incumbent that returns nothing at the larger size is broken there, not beaten by a percentage
