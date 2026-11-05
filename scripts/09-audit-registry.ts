@@ -81,6 +81,8 @@ async function main() {
 
     const depByHex = new Map(Object.entries(deployments.Dexes ?? {}).map(([n, d]: [string, any]) => [lc(d.hex), { n, a: lc(d.address) }]));
     for (const d of m.dexes) {
+        // listed ahead of its deployment so routes onto it can be proposed; apply holds those back
+        if (!d.address) { report("WARN", "dexes", `${d.name} has no address yet: not deployed, routes onto it are held back`); continue; }
         const onChain = chainDexAddr.get(lc(d.hex));
         if (onChain === undefined) { report("ERROR", "dexes", `${d.name} is in the manifest but not registered on chain`); continue; }
         if (isZero(onChain)) report("ERROR", "dexes", `${d.name} resolves to address(0) — every path using it reverts`);

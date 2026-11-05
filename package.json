@@ -8,6 +8,9 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "test:slipstream": "hardhat test tests/slipstream.test.ts --network localhost",
+    "fork:proxy": "ts-node scripts/utils/fork-proxy.ts",
+    "deploy:dex": "hardhat run scripts/02-deploy-dex.ts --network mainnet",
     "registry:seed": "hardhat run scripts/08-seed-registry.ts --network mainnet",
     "registry:audit": "hardhat run scripts/09-audit-registry.ts --network mainnet",
     "registry:sync": "hardhat run scripts/10-sync-registry.ts --network mainnet",

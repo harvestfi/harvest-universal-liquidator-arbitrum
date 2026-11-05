@@ -192,6 +192,16 @@
                 10000
             ],
             "defaultFee": 500
+        },
+        {
+            "name": "aeroSlipstream",
+            "kind": "cl",
+            "hex": "0x6ac70dc663911fae943651c037eb5dea83590bc0d91936e52ab434329ecc7b79",
+            "address": "",
+            "poolFactory": "0x88a60ee77392577c355C0acb2A8d476D5a4EC03a",
+            "router": "0x9Ee35Bf1bd69a03c6F0393582030fCe8Bb93D418",
+            "quoter": "0x1dDfeC5058180C207F55BB77D95AcDd0d8227868",
+            "quoterStyle": "meta"
         }
     ],
     "paths": [

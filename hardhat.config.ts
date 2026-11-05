@@ -20,10 +20,12 @@ function getNetworks(): NetworksUserConfig {
 
   return {
     hardhat: {
-      accounts: accounts,
+      // without a MNEMONIC the fork uses Hardhat's default test accounts, so tests never need one
+      ...(process.env.MNEMONIC ? { accounts } : {}),
       forking: {
-        url: `https://arb-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
-        // blockNumber: 82350734, // <-- edit here
+        // FORK_URL: see scripts/utils/fork-proxy.ts, Arbitrum blocks no longer carry totalDifficulty
+        url: process.env.FORK_URL || `https://arb-mainnet.g.alchemy.com/v2/${alchemyApiKey}`,
+        blockNumber: process.env.FORK_BLOCK ? Number(process.env.FORK_BLOCK) : undefined,
       },
     },
     mainnet: {
