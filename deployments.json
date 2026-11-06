@@ -41,6 +41,10 @@
     "pancakeV3": {
       "hex": "0x4d6015abe815c07969174e9c2e023ed50f9446b300257863a808732fef3dd7db",
       "address": "0x7F60C26a34D2B9D99D8DeFD321C32fd717bEB8A5"
+    },
+    "aeroSlipstream": {
+      "hex": "0x6ac70dc663911fae943651c037eb5dea83590bc0d91936e52ab434329ecc7b79",
+      "address": "0xcd3c816cE896182c7Ef3dE7701246145d763c36C"
     }
   }
 }

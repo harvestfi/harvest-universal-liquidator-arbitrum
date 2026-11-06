@@ -197,7 +197,7 @@
             "name": "aeroSlipstream",
             "kind": "cl",
             "hex": "0x6ac70dc663911fae943651c037eb5dea83590bc0d91936e52ab434329ecc7b79",
-            "address": "",
+            "address": "0xcd3c816ce896182c7ef3de7701246145d763c36c",
             "poolFactory": "0x88a60ee77392577c355C0acb2A8d476D5a4EC03a",
             "router": "0x9Ee35Bf1bd69a03c6F0393582030fCe8Bb93D418",
             "quoter": "0x1dDfeC5058180C207F55BB77D95AcDd0d8227868",
@@ -568,11 +568,11 @@
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a",
-            "symbols": "GRAIL > WETH > GMX",
-            "dex": "camelotV3",
+            "symbols": "GRAIL > USDC > GMX",
+            "dex": "camelot",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
-                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+                "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
                 "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a"
             ]
         },
@@ -1246,7 +1246,7 @@
         {
             "sellToken": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
             "buyToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-            "dex": "uniV3",
+            "dex": "aeroSlipstream",
             "path": [
                 "0x004b506865409877c9fa29bfb1eba929984b9bbc",
                 "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
@@ -1611,13 +1611,12 @@
         {
             "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "buyToken": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
-            "dex": "uniV3",
+            "dex": "aeroSlipstream",
             "path": [
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
-                "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
                 "0x004b506865409877c9fa29bfb1eba929984b9bbc"
             ],
-            "symbols": "WETH > USDC > USDG"
+            "symbols": "WETH > USDG"
         },
         {
             "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
