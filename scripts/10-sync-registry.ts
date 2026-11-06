@@ -34,6 +34,8 @@ async function main() {
     chainDexes.forEach((h, i) => chainDexAddr.set(h, lc(decode<string>(IREGISTRY, "dexesInfo", addrRes[i]) ?? ZERO)));
 
     for (const d of m.dexes) {
+        // not deployed yet: nothing to register until the manifest has its address
+        if (!d.address) continue;
         const on = chainDexAddr.get(lc(d.hex));
         if (on === undefined || isZeroHex(on))
             ops.push({

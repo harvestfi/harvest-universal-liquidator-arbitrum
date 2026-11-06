@@ -15,6 +15,36 @@ yarn test
 yarn  test
 ```
 
+Hardhat 2.13.1 can no longer fork Arbitrum on its own: every Arbitrum RPC now
+omits `totalDifficulty` from blocks, and this Hardhat refuses a fork block
+without it. `yarn fork:proxy` forwards to the real RPC and fills the field in;
+point the fork at it with `FORK_URL` (and pin a block with `FORK_BLOCK` so
+Hardhat caches it). Without a `MNEMONIC` the fork uses Hardhat's default test
+accounts.
+
+```shell
+FORK_UPSTREAM_URL=https://arb-mainnet.g.alchemy.com/v2/<key> yarn fork:proxy   # 1st terminal
+FORK_URL=http://127.0.0.1:8546 FORK_BLOCK=521479000 yarn test                  # 2nd terminal
+```
+
+### Slipstream fork tests
+
+The Slipstream pools behind `AeroSlipstreamDex` cannot be swapped on this
+Hardhat at all: their swap hook (`0xC0ed888AfE87ed1AcF01D9f19bB850159e3ce434`)
+uses `TLOAD`/`TSTORE`, which needs Cancun, and calls the ArbSys precompile at
+`0x64` (`arbBlockNumber()`), which no fork has. `tests/slipstream.test.ts`
+therefore runs against anvil, installs `contracts/test/ArbSysStub.sol` at
+`0x64`, and skips itself on the in-process network. It swaps through a
+UniversalLiquidator at $10, $1,000 and $50,000 on every USDG route and
+requires the output to equal the meta quoter's quote taken on the real chain
+at the fork block. The hook's fee decays with time, so the test pins anvil's
+clock to the fork block for every case. Start anvil fresh for each run.
+
+```shell
+anvil --fork-url https://arb-mainnet.g.alchemy.com/v2/<key> --fork-block-number 521479000   # 1st terminal
+yarn test:slipstream                                                                          # 2nd terminal, needs ALCHEMEY_KEY
+```
+
 ### Deploy locally
 In **1st** terminal session
 ```shell
@@ -168,6 +198,55 @@ illiquid token quotes something through almost any pool and a route that gives
 up half the value is worse than having none. A pair that *is* registered is
 compared the ordinary way instead. `registry:apply` sends these like any other
 proposal and adds the tokens and paths to the manifest.
+
+### Adding the Slipstream dex (`aeroSlipstream`) for USDG
+
+USDG's only liquidity the older dexes reach is a ~$500 Uniswap V3 pool, so the
+interim `uniV3` routes `USDG > USDC > WETH` and `WETH > USDC > USDG` cap out
+at a few hundred dollars. `AeroSlipstreamDex` swaps on the Slipstream-style
+factory `0x88a60ee77392577c355C0acb2A8d476D5a4EC03a` through its router
+`0x9Ee35Bf1bd69a03c6F0393582030fCe8Bb93D418`. The manifest already lists it
+with an empty `address`; the audit warns about that and `registry:apply`
+holds its routes back until the address is filled in.
+
+The deploy has to come from the registry owner (`0x6a74…5Aa2`): `deploy:dex`
+calls `addDex`, and the adapter's owner, who alone can `setTickSpacing`, is
+whoever deploys it. `deploy:dex` signs with the `MNEMONIC` account,
+`registry:apply` with `REGISTRY_PRIVATE_KEY` or `MNEMONIC`.
+
+```shell
+# 1. deploy AeroSlipstreamDex and addDex(keccak256("aeroSlipstream") = 0x6ac70dc6…7b79, address)
+DEX_FILE=AeroSlipstreamDex DEX_NAME=aeroSlipstream yarn deploy:dex
+# 2. the script does not wait for addDex; check it landed (should print the new address)
+cast call 0xbcE9d31FfA2c96E11cEbEAa021136a83A3575D95 "dexesInfo(bytes32)(address)" \
+  0x6ac70dc663911fae943651c037eb5dea83590bc0d91936e52ab434329ecc7b79 --rpc-url $REGISTRY_RPC_URL
+# 3. put the address (lowercase) in helpers/registry.json under dexes -> aeroSlipstream,
+#    and add "aeroSlipstream": { "hex": "0x6ac7…7b79", "address": … } to deployments.json
+yarn registry:audit    # 4. aeroSlipstream registered at the manifest address
+yarn registry:routes   # 5. proposes WETH > USDC > USDG and USDG > USDC > WETH on aeroSlipstream
+yarn registry:apply    # 6. dry run, see below
+APPLY_EXECUTE=1 yarn registry:apply   # 7. send
+yarn registry:audit    # 8. confirm
+```
+
+The dry run should list four transactions, tick spacings before paths, so no
+harvest in between can reach a pair the adapter has no pool for (it would
+revert with `TickSpacingNotSet`, not lose funds):
+
+1. `setTickSpacing(WETH, USDC, 100)` on the new adapter
+2. `setTickSpacing(USDC, USDG, 1)` on the new adapter
+3. `setPath(aeroSlipstream, [WETH, USDC, USDG])` on the registry, replacing the `uniV3` entry
+4. `setPath(aeroSlipstream, [USDG, USDC, WETH])` on the registry, replacing the `uniV3` entry
+
+`USDG > iFARM` needs no entry of its own: `getPath` composes it through WETH
+with the existing camelot `WETH > iFARM`. EURe stays on its interim `uniV3`
+routes; the proposer finds nothing better for it on this venue.
+
+`AeroSlipstreamDex` differs from the Base version in two ways (see the
+contract's header): it swaps one hop at a time and reverts with `PartialFill`
+if a pool leaves input behind instead of letting the router keep it, and a
+pair with no tick spacing reverts with `TickSpacingNotSet`. Outputs are the
+same as the Base version's `exactInput` along the same pools.
 
 ### Watching it on a schedule
 

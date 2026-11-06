@@ -15,6 +15,8 @@ async function main() {
         address.UniversalLiquidatorRegistryAddr
     );
 
+    // DEX_FILE / DEX_NAME answer the prompts, e.g. DEX_FILE=AeroSlipstreamDex DEX_NAME=aeroSlipstream
+    prompts.override({ dex: process.env.DEX_FILE, name: process.env.DEX_NAME });
     const { dex, name } = await prompts([{
         type: 'text',
         name: 'dex',

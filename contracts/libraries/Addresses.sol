@@ -14,4 +14,5 @@ library Addresses {
     address constant camelotV3Router = 0x1F721E2E82F6676FCE4eA07A5958cF098D339e18;
     address constant aaveV3Pool = 0x794a61358D6845594F94dc1DB02A252b5b4814aD;
     address constant pancakeV3Router = 0x32226588378236Fd0c7c4053999F88aC0e5cAc77;
+    address constant aeroSlipstreamRouter = 0x9Ee35Bf1bd69a03c6F0393582030fCe8Bb93D418;
 }
