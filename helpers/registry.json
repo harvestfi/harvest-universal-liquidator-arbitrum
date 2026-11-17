@@ -568,11 +568,11 @@
         {
             "sellToken": "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
             "buyToken": "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a",
-            "symbols": "GRAIL > USDC > GMX",
-            "dex": "camelot",
+            "symbols": "GRAIL > WETH > GMX",
+            "dex": "camelotV3",
             "path": [
                 "0x3d9907f9a368ad0a51be60f7da3b97cf940982d8",
-                "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
+                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                 "0xfc5a1a6eb076a2c7ad06ed22c90d7e710e35ad0a"
             ]
         },
@@ -892,7 +892,7 @@
             "sellToken": "0x93b346b6bc2548da6a1e7d98e9a421b42541425b",
             "buyToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "symbols": "LUSD > USDC > WETH",
-            "dex": "uniV3",
+            "dex": "camelotV3",
             "path": [
                 "0x93b346b6bc2548da6a1e7d98e9a421b42541425b",
                 "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
@@ -995,7 +995,7 @@
             "sellToken": "0x3082cc23568ea640225c2467653db90e9250aaa0",
             "buyToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "symbols": "RDNT > WETH",
-            "dex": "uniV3",
+            "dex": "sushi",
             "path": [
                 "0x3082cc23568ea640225c2467653db90e9250aaa0",
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"
@@ -1170,11 +1170,11 @@
         {
             "sellToken": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
             "buyToken": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
-            "symbols": "USDC > USDC > WBTC",
-            "dex": "pancakeV3",
+            "symbols": "USDC > USD₮0 > WBTC",
+            "dex": "uniV3",
             "path": [
                 "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
-                "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+                "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
                 "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f"
             ]
         },
@@ -1467,7 +1467,7 @@
             "sellToken": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
             "buyToken": "0x3082cc23568ea640225c2467653db90e9250aaa0",
             "symbols": "WETH > RDNT",
-            "dex": "uniV3",
+            "dex": "sushi",
             "path": [
                 "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                 "0x3082cc23568ea640225c2467653db90e9250aaa0"
