@@ -253,7 +253,11 @@ same as the Base version's `exactInput` along the same pools.
 `registry:watch` runs the same checks and speaks up only when something needs
 doing — audit errors, registered routes that no longer quote, and routes better
 by at least `WATCH_MIN_BPS` (default 1%). It holds no key and sends no
-transaction; applying stays manual.
+transaction; applying stays manual. Findings in the manifest's `accepted` list
+do not count as errors, so they do not trigger a message, but every message it
+does send carries how many there are, the weekly one included. That is a count
+and nothing more: which findings, why, and whether an entry has gone stale are
+in `yarn registry:audit`.
 
 ```shell
 WATCH_DRY=1 yarn registry:watch          # print what it would say
