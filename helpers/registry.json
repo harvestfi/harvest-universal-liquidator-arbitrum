@@ -107,6 +107,44 @@
         "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8": "5000",
         "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": "5000"
     },
+    "accepted": [
+        {
+            "group": "hops",
+            "contains": "LODE > WETH > wstETH [camelotV3] hop1 WETH/wstETH·0fbc: no pool",
+            "reason": "The buy token 0x0fbcbaea96ce0cf7ee00a8c19c3ab6f5dc8e1921 is a second wstETH whose total supply on Arbitrum is zero, and Camelot V3 has no WETH pool for it. The path is registered on chain and the registry has no removePath, so it can only be repointed, and there is nothing to repoint a route into a token nobody holds at. Every Lodestar vault that earns LODE is inactive.",
+            "since": "2026-11-23"
+        },
+        {
+            "group": "hops",
+            "contains": "MORPHO > WETH [uniV3] hop0 MORPHO/WETH: pool 0xd611c5faa78b3e3fdfdaae98e41d945672f18d07",
+            "reason": "The pool is drained: liquidity() is 0, it holds 0.022 MORPHO and 7382 wei of WETH, and the quoter reverts in both directions at every size. Nothing else on Arbitrum takes MORPHO: the registry's other adapters have either no pool (Camelot V2, Sushi, PancakeV3) or an empty one (Camelot V3 0xe45cbabe3fac6ef1f6ad9a11178e3205462d5308 and Uniswap V3 1% 0x94ad5a1705a88a598906b339f4788d757c5f2f83, both with liquidity() 0), and the only pools holding anything are Uniswap V4 ones charging 3.3% to 99.8% with next to no volume. Of the eight Morpho vaults with MORPHO as a reward one is still active (morpho_CR_USDC_arbitrum) and its strategy holds none. Repoint this when a real pool appears.",
+            "since": "2026-11-23"
+        },
+        {
+            "group": "hops",
+            "contains": "NOTE > WETH [uniV3] hop0 NOTE/WETH: pool 0xfbd061544f3343a95b7e2bcd0b42abbe2736b15b",
+            "reason": "Every position in the pool sits on one side of the price: it holds 233,029 NOTE and 0.0034 WETH, liquidity() is 0, and the quoter reverts for NOTE in at every size up to the pool's whole balance. WETH in still fills, which is why ARB > WETH > NOTE only warns. The other NOTE pools on Arbitrum (four on Uniswap V3, one on Uniswap V4, one on Kyber Elastic) hold $58 at most, and none of the registry's other adapters has a WETH/NOTE pool, so there is nowhere to repoint a NOTE sale. No vault in the Harvest API has NOTE as a reward.",
+            "since": "2026-11-23"
+        },
+        {
+            "group": "hops",
+            "contains": "RSR > WETH [uniV3] hop0 RSR/WETH: pool 0xf215cedbae999571e4ba5d80c10b6e835f88d5ec",
+            "reason": "The pool is empty: liquidity() is 0, the price is pinned at the minimum tick and it holds dust of both tokens, so it reverts in either direction. RSR does still trade on Arbitrum, on the Curve RSR/WETH pool 0x98961b846d1a046701af1a56023e29ff55522ad5 (about 17.8M RSR and 12.9 WETH), which CurveDex has no pair config for and the proposer cannot discover. Only two inactive vaults earn RSR (curve_eUSD_crvUSD, curve_TriRSR), so this is accepted rather than repointed; repoint to that pool if RSR ever needs liquidating again.",
+            "since": "2026-11-23"
+        },
+        {
+            "group": "hops",
+            "contains": "WETH > RSR [uniV3] hop0 WETH/RSR: pool 0xf215cedbae999571e4ba5d80c10b6e835f88d5ec",
+            "reason": "The same empty pool as RSR > WETH, in the other direction. Buying RSR would work through the Curve RSR/WETH pool 0x98961b846d1a046701af1a56023e29ff55522ad5 once CurveDex has a pair config for it; no active vault needs to.",
+            "since": "2026-11-23"
+        },
+        {
+            "group": "hops",
+            "contains": "WETH > wjAura [uniV3] hop0 WETH/wjAura: pool 0x60fdc8aed6dfe4657f2d5a3849e520b40c40520d",
+            "reason": "The only wjAura pool on Arbitrum, and it is empty: liquidity() is 0 and it holds 17 wei of WETH and 52 wei of wjAura, so nothing can be bought through it at any size. No other venue lists wjAura and no vault in the Harvest API holds or earns it, so there is nothing to repoint to and nothing waiting on it.",
+            "since": "2026-11-23"
+        }
+    ],
     "dexes": [
         {
             "name": "camelot",

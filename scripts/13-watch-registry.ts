@@ -37,14 +37,20 @@ function run(script: string, extra: Record<string, string> = {}) {
     return { code: res.status ?? 1, out };
 }
 
-interface AuditResult { errors: number; warnings: number; lines: string[]; ran: boolean }
+interface AuditResult { errors: number; warnings: number; accepted: number; lines: string[]; ran: boolean }
 
 /**
  * The audit prints its findings grouped under ERROR/WARN headings and ends with
  * a count, so the count is the verdict and the ERROR bullets are the detail.
+ * Findings the manifest accepts are counted apart and never fail the run, but
+ * the count is kept: a silence nobody is reminded of is one nobody revisits.
+ *
+ * The count is a line of its own, and is only read as one. Everything above it
+ * is indented, and since the audit prints each accepted entry's reason, some of
+ * it is prose a maintainer wrote --- which must never be taken for the verdict.
  */
 function readAudit(out: string): AuditResult {
-    const tally = out.match(/(\d+) error\(s\), (\d+) warning\(s\)/);
+    const tally = out.match(/^(\d+) error\(s\), (\d+) warning\(s\)(?:, (\d+) accepted)?$/m);
     const lines: string[] = [];
     let inError = false;
     for (const line of out.split("\n")) {
@@ -56,8 +62,14 @@ function readAudit(out: string): AuditResult {
         ran: !!tally,
         errors: tally ? Number(tally[1]) : 0,
         warnings: tally ? Number(tally[2]) : 0,
+        accepted: tally?.[3] ? Number(tally[3]) : 0,
         lines,
     };
+}
+
+/** The counts that are not errors, as they read after the verdict. */
+function aside(a: AuditResult) {
+    return `${a.warnings} warning(s)${a.accepted ? `, ${a.accepted} accepted` : ""}`;
 }
 
 function pct(bps: number) {
@@ -136,7 +148,7 @@ async function main() {
     const doAudit = MODE === "audit" || MODE === "both";
     const doRoutes = MODE === "routes" || MODE === "both";
 
-    let audit: AuditResult = { errors: 0, warnings: 0, lines: [], ran: false };
+    let audit: AuditResult = { errors: 0, warnings: 0, accepted: 0, lines: [], ran: false };
     if (doAudit) {
         const r = run("09-audit-registry.ts");
         audit = readAudit(r.out);
@@ -148,7 +160,7 @@ async function main() {
             process.exitCode = 1;
             return;
         }
-        console.log(`audit: ${audit.errors} error(s), ${audit.warnings} warning(s)`);
+        console.log(`audit: ${audit.errors} error(s), ${aside(audit)}`);
     }
 
     let broken: ProposalFile["proposals"] = [];
@@ -185,11 +197,11 @@ async function main() {
     parts.push(worth ? `**${chain} — registry needs attention**` : `**${chain} — registry is clean**`);
     if (audit.ran) {
         if (audit.errors) {
-            parts.push(`\n🔴 audit: ${audit.errors} error(s), ${audit.warnings} warning(s)`);
+            parts.push(`\n🔴 audit: ${audit.errors} error(s), ${aside(audit)}`);
             for (const l of audit.lines.slice(0, 8)) parts.push(`   ${l}`);
             if (audit.lines.length > 8) parts.push(`   … ${audit.lines.length - 8} more`);
         } else {
-            parts.push(`\n🟢 audit: clean (${audit.warnings} warning(s))`);
+            parts.push(`\n🟢 audit: clean (${aside(audit)})`);
         }
     }
     if (broken.length) {
