@@ -43,6 +43,19 @@ permissions:
 
 jobs:
   watch:
+    # A fork inherits this file, and once actions are enabled there its
+    # schedule too --- but never the secrets. A scheduled run in a fork has no
+    # RPC to read from and nowhere to post, so it can only fail, twice a day,
+    # and mail the fork's owner about a registry that is fine. So the schedule
+    # is honoured only in the org that holds the secrets: anywhere else a
+    # scheduled run still starts, and is skipped. A run started by hand is
+    # left alone: whoever dispatches one in a fork chose to, and has either
+    # set their own secrets or should be told which are missing.
+    #
+    # A skipped run counts as a success and mails nobody, so if this repo is
+    # ever moved to another owner the name below has to move with it --- the
+    # only other sign would be the monday message no longer arriving.
+    if: github.repository_owner == 'harvestfi' || github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

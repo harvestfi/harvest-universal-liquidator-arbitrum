@@ -72,6 +72,33 @@ function aside(a: AuditResult) {
     return `${a.warnings} warning(s)${a.accepted ? `, ${a.accepted} accepted` : ""}`;
 }
 
+/**
+ * Why a script stopped, in its own words. A thrown error ends in its stack, and
+ * after that in a dump of its own fields, so the last lines of a failed run are
+ * node internals or a stray `code:` and a closing brace. The line that names
+ * the error is the one worth reading, so that is where this starts: the last
+ * such line and what follows it, stack frames aside. A script that stopped
+ * without throwing has no such line, and then its last three are the answer.
+ *
+ * "Names the error" is `Error:` or `SomethingError:` at the start of a line,
+ * capital and colon both --- the dump has fields like `serverError:` in it, and
+ * those are detail, not the reason.
+ *
+ * This text is posted, and an RPC error quotes the endpoint it could not
+ * reach, whose path is where the key lives. So a url keeps its scheme and
+ * host and loses the rest, any `user:key@` in front of the host included:
+ * enough to say which endpoint, never enough to use it.
+ */
+function lastWords(out: string) {
+    const said = out.split("\n").map((l) => l.trim()).filter((l) => l && !/^at\s/.test(l));
+    let named = -1;
+    said.forEach((l, i) => { if (/^(?:[A-Z]\w*)?Error\b[^:]*:/.test(l)) named = i; });
+    const lines = named >= 0 ? said.slice(named, named + 3) : said.slice(-3);
+    return lines.join(" | ")
+        .replace(/\b((?:https?|wss?):\/\/)(?:[^@/\s"'`,)]*@)?([^/?#\s"'`,)]+)[^\s"'`,)]*/gi, "$1$2")
+        .slice(0, 300);
+}
+
 function pct(bps: number) {
     return `${(bps / 100).toFixed(2)}%`;
 }
@@ -154,8 +181,7 @@ async function main() {
         audit = readAudit(r.out);
         if (!audit.ran) {
             // the audit never reached its own summary, so it did not run to completion
-            const tail = r.out.trim().split("\n").slice(-3).join(" | ").slice(0, 300);
-            await tell(`⚠️ ${chain}: the registry audit did not complete (exit ${r.code})\n${tail}`
+            await tell(`⚠️ ${chain}: the registry audit did not complete (exit ${r.code})\n${lastWords(r.out)}`
                 + (LINK ? `\n${LINK}` : ""));
             process.exitCode = 1;
             return;
@@ -174,8 +200,7 @@ async function main() {
         const r = run("11-propose-routes.ts", out ? { PROPOSE_OUT: out } : {});
         const file = out ?? process.env.REGISTRY_PROPOSALS;
         if (r.code !== 0 || !file || !fs.existsSync(file)) {
-            const tail = r.out.trim().split("\n").slice(-3).join(" | ").slice(0, 300);
-            await tell(`⚠️ ${chain}: the route check did not complete (exit ${r.code})\n${tail}`
+            await tell(`⚠️ ${chain}: the route check did not complete (exit ${r.code})\n${lastWords(r.out)}`
                 + (LINK ? `\n${LINK}` : ""));
             process.exitCode = 1;
             return;
