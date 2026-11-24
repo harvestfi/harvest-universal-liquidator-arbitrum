@@ -270,5 +270,13 @@ with liquidity and a percent seen on Tuesday is often gone by Thursday. Add
 `REGISTRY_RPC_URL` plus `WATCH_DISCORD_WEBHOOK`, or `WATCH_TELEGRAM_TOKEN` with
 `WATCH_TELEGRAM_CHAT`, as repository secrets.
 
+A fork gets the workflow file but not the secrets, so a scheduled run outside
+the `harvestfi` org still starts but is skipped, rather than left to fail twice
+a day. To run the watch from a fork, add the secrets there and start it by hand
+from the Actions tab; a manual run is never skipped. A run that cannot finish
+says why — the script's own error line, without the stack, and with every
+http(s) or ws(s) URL cut back to scheme and host, since the rest of an RPC URL
+is its key.
+
 Dexes marked `kind: "unknown"` on Arbitrum are skipped by both the hop checks and
 the proposer — they do not fit any resolution shape the tooling knows.
